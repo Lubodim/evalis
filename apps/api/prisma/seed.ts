@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { AssessmentType, PrismaClient, QuestionType, UserRole } from "@prisma/client";
 
 const prisma = new PrismaClient();

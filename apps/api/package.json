@@ -9,7 +9,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
-    "prisma:seed": "ts-node prisma/seed.ts"
+    "prisma:seed": "ts-node prisma/seed.ts",
+    "db:setup": "npm run prisma:generate && npm run prisma:migrate:dev && npm run prisma:seed"
   },
   "prisma": {
     "seed": "ts-node prisma/seed.ts"
@@ -19,6 +20,7 @@
     "@nestjs/core": "11.0.7",
     "@nestjs/platform-express": "11.0.7",
     "@prisma/client": "6.5.0",
+    "dotenv": "16.4.7",
     "reflect-metadata": "0.2.2",
     "rxjs": "7.8.2"
   },

@@ -12,7 +12,7 @@ import { CreateAssessmentDto } from "./dto/create-assessment.dto";
 import { AssessmentsService } from "./assessments.service";
 
 type TeacherRequestUser = {
-  role: UserRole.TEACHER;
+  role: typeof UserRole.TEACHER;
   userId: string;
 };
 
@@ -62,3 +62,4 @@ export class AssessmentsController {
     };
   }
 }
+
