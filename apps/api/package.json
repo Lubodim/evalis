@@ -5,7 +5,14 @@
   "scripts": {
     "start:dev": "nest start --watch",
     "build": "nest build",
-    "start": "node dist/main"
+    "start": "node dist/main",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:seed": "ts-node prisma/seed.ts"
+  },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "11.0.7",
@@ -19,6 +26,7 @@
     "@nestjs/cli": "11.0.5",
     "@nestjs/schematics": "11.0.1",
     "@nestjs/testing": "11.0.7",
+    "@types/node": "22.14.0",
     "prisma": "6.5.0",
     "ts-node": "10.9.2",
     "typescript": "5.8.2"
