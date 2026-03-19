@@ -2,7 +2,7 @@
 
 ## Problem
 
-Schools need a better way to create assessments, review student work, and use AI safely to support grading and feedback.
+Schools need a simple web system for creating assessments, collecting student work, and managing results without relying on disconnected tools.
 
 ## Primary Users
 
@@ -33,23 +33,19 @@ Schools need a better way to create assessments, review student work, and use AI
 - Students submit answers
 - Teachers review submissions
 
-### 5. AI Assistance
-
-- Suggest grading feedback
-- Summarize student performance
-- Flag ambiguous or low-confidence evaluations for teacher review
-
-### 6. Reports
+### 5. Results and Reports
 
 - Class-level performance overview
 - Student-level progress summary
 
 ## Non-Goals for MVP
 
+- Mobile app
+- Desktop app
 - Full LMS replacement
-- Complex parent portals
+- AI-generated grading
 - Advanced scheduling
-- Real-time proctoring
+- Parent portals
 
 ## First Milestone
 
@@ -59,5 +55,5 @@ Deliver a teacher workflow:
 2. Create class
 3. Create assessment
 4. Receive student submission
-5. Review AI-assisted grading suggestion
+5. Review and score submission
 6. Publish result

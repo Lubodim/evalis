@@ -1,6 +1,6 @@
 # API App
 
-Backend API for Evalis.
+NestJS backend API for the Evalis web application.
 
 Planned modules:
 
@@ -9,5 +9,4 @@ Planned modules:
 - Classes
 - Assessments
 - Submissions
-- AI evaluation
 - Reports

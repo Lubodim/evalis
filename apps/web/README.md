@@ -1,6 +1,6 @@
 # Web App
 
-Frontend application for Evalis.
+Next.js frontend web application for Evalis.
 
 Planned features:
 

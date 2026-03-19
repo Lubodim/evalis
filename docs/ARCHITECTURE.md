@@ -2,13 +2,13 @@
 
 ## Repository Shape
 
-This project starts as a simple workspace-based monorepo so shared code can live in one place from the beginning.
+This project starts as a simple workspace-based monorepo for a web-only application.
 
 ## Applications
 
 ### `apps/web`
 
-The frontend for admins, teachers, and students.
+The Next.js frontend for admins, teachers, and students.
 
 Suggested responsibilities:
 
@@ -20,35 +20,34 @@ Suggested responsibilities:
 
 ### `apps/api`
 
-The backend API and business logic layer.
+The NestJS backend API and business logic layer for the web app.
 
 Suggested responsibilities:
 
 - Authentication integration
 - User, class, and assessment APIs
 - Submission processing
-- AI evaluation orchestration
 - Reporting endpoints
 
 ## Shared Package
 
 ### `packages/shared`
 
-Suggested responsibilities:
+Optional package for shared TypeScript types and validation only if duplication becomes a real issue.
 
-- Shared TypeScript types
-- Zod validation schemas
-- Common constants
+It should stay minimal and does not need to be used in the first iteration.
 
 ## Data Layer
 
 - PostgreSQL as the primary database
 - Prisma for schema management and queries
 
-## AI Layer
+## MVP Scope Guardrails
 
-- OpenAI API for feedback generation and grading assistance
-- Human-in-the-loop review for any final grading action
+- Web application only
+- No mobile client
+- No desktop client
+- No AI features in the initial foundation
 
 ## Deployment Direction
 
