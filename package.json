@@ -1,0 +1,14 @@
+{
+  "name": "evalis",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "echo \"Initialize apps/web and apps/api next\"",
+    "build": "echo \"Build scripts will be added after app initialization\"",
+    "test": "echo \"Test scripts will be added after app initialization\""
+  }
+}
