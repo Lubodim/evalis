@@ -1,7 +1,8 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { AssessmentType } from "@prisma/client";
+import { AssessmentReviewMode, AssessmentType } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { CreateAssessmentDto } from "./dto/create-assessment.dto";
+import { UpdateAssessmentReviewSettingsDto } from "./dto/update-assessment-review-settings.dto";
 
 @Injectable()
 export class AssessmentsService {
@@ -97,6 +98,44 @@ export class AssessmentsService {
     });
   }
 
+  async updateReviewSettings(
+    assessmentId: string,
+    teacherId: string,
+    body: UpdateAssessmentReviewSettingsDto
+  ) {
+    await this.ensureTeacherAssessmentExists(assessmentId, teacherId);
+
+    if (body.reviewMode === undefined && body.reviewAvailableAt === undefined) {
+      throw new BadRequestException("At least one review setting must be provided.");
+    }
+
+    if (
+      body.reviewMode !== undefined &&
+      !Object.values(AssessmentReviewMode).includes(body.reviewMode)
+    ) {
+      throw new BadRequestException("reviewMode is invalid.");
+    }
+
+    const reviewAvailableAt = this.parseReviewAvailableAt(body.reviewAvailableAt);
+
+    return this.prisma.assessment.update({
+      where: {
+        id: assessmentId
+      },
+      data: {
+        reviewMode: body.reviewMode,
+        reviewAvailableAt
+      },
+      select: {
+        id: true,
+        title: true,
+        reviewMode: true,
+        reviewAvailableAt: true,
+        updatedAt: true
+      }
+    });
+  }
+
   private async ensureTeacherClassExists(classId: string, teacherId: string) {
     const schoolClass = await this.prisma.schoolClass.findUnique({
       where: {
@@ -113,6 +152,22 @@ export class AssessmentsService {
     }
   }
 
+  private async ensureTeacherAssessmentExists(assessmentId: string, teacherId: string) {
+    const assessment = await this.prisma.assessment.findFirst({
+      where: {
+        id: assessmentId,
+        teacherId
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!assessment) {
+      throw new NotFoundException(`Assessment ${assessmentId} was not found for this teacher.`);
+    }
+  }
+
   private parseOptionalDate(value: string | undefined, fieldName: string) {
     if (!value) {
       return null;
@@ -122,6 +177,24 @@ export class AssessmentsService {
 
     if (Number.isNaN(parsedDate.getTime())) {
       throw new BadRequestException(`${fieldName} must be a valid date string.`);
+    }
+
+    return parsedDate;
+  }
+
+  private parseReviewAvailableAt(value: string | null | undefined) {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (value === null) {
+      return null;
+    }
+
+    const parsedDate = new Date(value);
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException("reviewAvailableAt must be a valid date string or null.");
     }
 
     return parsedDate;

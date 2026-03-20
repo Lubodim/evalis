@@ -42,6 +42,15 @@ export class SubmissionsController {
     return this.submissionsService.findSubmission(submissionId, currentStudent.studentId);
   }
 
+  @Get("submissions/:submissionId/review")
+  async findOneSubmissionReview(
+    @Param("submissionId") submissionId: string,
+    @Headers("x-student-id") studentIdHeader?: string
+  ) {
+    const currentStudent = this.getStudentIdentity(studentIdHeader);
+    return this.submissionsService.findSubmissionReviewForStudent(submissionId, currentStudent.studentId);
+  }
+
   @Post("submissions/:submissionId/answers")
   async submitAnswers(
     @Param("submissionId") submissionId: string,

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { Prisma, SubmissionStatus } from "@prisma/client";
+import { AssessmentReviewMode, Prisma, SubmissionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { GradeSubmissionDto } from "./dto/grade-submission.dto";
 import { SubmitAnswersDto } from "./dto/submit-answers.dto";
@@ -108,6 +108,8 @@ const teacherSubmissionDetailSelect = Prisma.validator<Prisma.SubmissionSelect>(
       totalPoints: true,
       publishedAt: true,
       dueAt: true,
+      reviewMode: true,
+      reviewAvailableAt: true,
       schoolClass: {
         select: {
           id: true,
@@ -142,6 +144,7 @@ const teacherSubmissionDetailSelect = Prisma.validator<Prisma.SubmissionSelect>(
       updatedAt: true,
       question: {
         select: {
+          id: true,
           prompt: true,
           type: true,
           maxPoints: true,
@@ -163,6 +166,71 @@ const teacherSubmissionDetailSelect = Prisma.validator<Prisma.SubmissionSelect>(
     }
   }
 });
+
+const reviewSubmissionSelect = Prisma.validator<Prisma.SubmissionSelect>()({
+  id: true,
+  status: true,
+  submittedAt: true,
+  createdAt: true,
+  updatedAt: true,
+  assessment: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      type: true,
+      totalPoints: true,
+      publishedAt: true,
+      dueAt: true,
+      reviewMode: true,
+      reviewAvailableAt: true,
+      schoolClass: {
+        select: {
+          id: true,
+          name: true,
+          subject: true,
+          schoolYear: true
+        }
+      }
+    }
+  },
+  answers: {
+    select: {
+      id: true,
+      questionId: true,
+      answerText: true,
+      selectedOption: true,
+      pointsAwarded: true,
+      teacherFeedback: true,
+      updatedAt: true,
+      question: {
+        select: {
+          id: true,
+          prompt: true,
+          type: true,
+          maxPoints: true,
+          orderIndex: true
+        }
+      }
+    },
+    orderBy: {
+      createdAt: "asc"
+    }
+  },
+  result: {
+    select: {
+      totalScore: true,
+      maxScore: true,
+      percentage: true,
+      gradeLabel: true,
+      publishedAt: true
+    }
+  }
+});
+
+type ReviewSubmission = Prisma.SubmissionGetPayload<{
+  select: typeof reviewSubmissionSelect;
+}>;
 
 @Injectable()
 export class SubmissionsService {
@@ -256,6 +324,24 @@ export class SubmissionsService {
 
   async findSubmission(submissionId: string, studentIdentity: string) {
     const studentProfile = await this.getStudentProfile(studentIdentity);
+    const submissionSummary = await this.prisma.submission.findFirst({
+      where: {
+        id: submissionId,
+        studentProfileId: studentProfile.id
+      },
+      select: {
+        id: true,
+        status: true
+      }
+    });
+
+    if (!submissionSummary) {
+      throw new NotFoundException(`Submission ${submissionId} was not found for this student.`);
+    }
+
+    if (submissionSummary.status === SubmissionStatus.GRADED) {
+      return this.findSubmissionReviewForStudent(submissionId, studentProfile.id);
+    }
 
     const submission = await this.prisma.submission.findFirst({
       where: {
@@ -270,6 +356,42 @@ export class SubmissionsService {
     }
 
     return submission;
+  }
+
+  async findSubmissionReviewForStudent(submissionId: string, studentIdentity: string) {
+    const studentProfile = await this.getStudentProfile(studentIdentity);
+
+    const submission = await this.prisma.submission.findFirst({
+      where: {
+        id: submissionId,
+        studentProfileId: studentProfile.id
+      },
+      select: reviewSubmissionSelect
+    });
+
+    if (!submission) {
+      throw new NotFoundException(`Submission ${submissionId} was not found for this student.`);
+    }
+
+    return this.buildReviewResponse(submission);
+  }
+
+  async findSubmissionReviewForParent(submissionId: string, studentProfileId: string, parentUserId: string) {
+    await this.ensureParentStudentLink(parentUserId, studentProfileId);
+
+    const submission = await this.prisma.submission.findFirst({
+      where: {
+        id: submissionId,
+        studentProfileId
+      },
+      select: reviewSubmissionSelect
+    });
+
+    if (!submission) {
+      throw new NotFoundException(`Submission ${submissionId} was not found for this parent.`);
+    }
+
+    return this.buildReviewResponse(submission);
   }
 
   async submitAnswers(submissionId: string, studentIdentity: string, body: SubmitAnswersDto) {
@@ -628,6 +750,24 @@ export class SubmissionsService {
     }
   }
 
+  private async ensureParentStudentLink(parentUserId: string, studentProfileId: string) {
+    const link = await this.prisma.parentStudentLink.findUnique({
+      where: {
+        parentUserId_studentProfileId: {
+          parentUserId,
+          studentProfileId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!link) {
+      throw new NotFoundException(`Student ${studentProfileId} was not found for this parent.`);
+    }
+  }
+
   private normalizeSubmissionAnswers(
     answers: SubmitAnswersDto["answers"],
     validQuestionIds: Set<string>
@@ -704,5 +844,94 @@ export class SubmissionsService {
         teacherFeedback: answer.teacherFeedback?.trim() || null
       };
     });
+  }
+
+  private buildReviewResponse(submission: ReviewSubmission) {
+    const baseResponse = {
+      id: submission.id,
+      status: submission.status,
+      submittedAt: submission.submittedAt,
+      createdAt: submission.createdAt,
+      updatedAt: submission.updatedAt,
+      assessment: {
+        id: submission.assessment.id,
+        title: submission.assessment.title,
+        description: submission.assessment.description,
+        type: submission.assessment.type,
+        totalPoints: submission.assessment.totalPoints,
+        publishedAt: submission.assessment.publishedAt,
+        dueAt: submission.assessment.dueAt,
+        reviewMode: submission.assessment.reviewMode,
+        reviewAvailableAt: submission.assessment.reviewAvailableAt,
+        schoolClass: submission.assessment.schoolClass
+      },
+      result: null,
+      answers: [] as Array<Record<string, unknown>>
+    };
+
+    if (submission.status !== SubmissionStatus.GRADED) {
+      return baseResponse;
+    }
+
+    if (
+      submission.assessment.reviewAvailableAt &&
+      submission.assessment.reviewAvailableAt.getTime() > Date.now()
+    ) {
+      return baseResponse;
+    }
+
+    if (submission.assessment.reviewMode === AssessmentReviewMode.NONE) {
+      return baseResponse;
+    }
+
+    const result = submission.result
+      ? {
+          totalScore: submission.result.totalScore,
+          maxScore: submission.result.maxScore,
+          percentage: submission.result.percentage,
+          gradeLabel: submission.result.gradeLabel,
+          publishedAt: submission.result.publishedAt
+        }
+      : null;
+
+    if (submission.assessment.reviewMode === AssessmentReviewMode.SCORE_ONLY) {
+      return {
+        ...baseResponse,
+        result
+      };
+    }
+
+    const answers = submission.answers.map((answer) => {
+      const visibleAnswer = {
+        id: answer.id,
+        questionId: answer.questionId,
+        answerText: answer.answerText,
+        selectedOption: answer.selectedOption,
+        pointsAwarded: answer.pointsAwarded,
+        updatedAt: answer.updatedAt,
+        question: {
+          id: answer.question.id,
+          prompt: answer.question.prompt,
+          type: answer.question.type,
+          maxPoints: answer.question.maxPoints,
+          orderIndex: answer.question.orderIndex
+        }
+      };
+
+      if (submission.assessment.reviewMode === AssessmentReviewMode.ANSWERS_WITH_EXPLANATIONS) {
+        return {
+          ...visibleAnswer,
+          teacherFeedback: answer.teacherFeedback
+        };
+      }
+
+      return visibleAnswer;
+    });
+
+    return {
+      ...baseResponse,
+      result,
+      answers
+    };
   }
 }

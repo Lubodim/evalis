@@ -21,6 +21,13 @@ enum AssessmentType {
   TEST
 }
 
+enum AssessmentReviewMode {
+  NONE
+  SCORE_ONLY
+  ANSWERS_NO_EXPLANATIONS
+  ANSWERS_WITH_EXPLANATIONS
+}
+
 enum QuestionType {
   SHORT_TEXT
   LONG_TEXT
@@ -110,6 +117,8 @@ model Assessment {
   totalPoints      Int
   publishedAt      DateTime?
   dueAt            DateTime?
+  reviewMode       AssessmentReviewMode @default(NONE)
+  reviewAvailableAt DateTime?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   schoolClass      SchoolClass    @relation(fields: [schoolClassId], references: [id])
@@ -181,3 +190,4 @@ model Result {
   assessment       Assessment     @relation(fields: [assessmentId], references: [id])
   studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
 }
+
