@@ -49,7 +49,8 @@ export class ClassesController {
       throw new BadRequestException("Missing x-user-role header.");
     }
 
-    const normalizedRole = roleHeader.toUpperCase() as UserRole;
+    const normalizedRole = roleHeader.trim().toUpperCase() as UserRole;
+    const normalizedUserId = userIdHeader?.trim() || null;
 
     if (!Object.values(UserRole).includes(normalizedRole)) {
       throw new BadRequestException("Invalid x-user-role header.");
@@ -59,13 +60,13 @@ export class ClassesController {
       throw new ForbiddenException("Only school admins and teachers can access classes.");
     }
 
-    if (normalizedRole === UserRole.TEACHER && !userIdHeader) {
+    if (normalizedRole === UserRole.TEACHER && !normalizedUserId) {
       throw new BadRequestException("Missing x-user-id header for teacher requests.");
     }
 
     return {
       role: normalizedRole,
-      userId: userIdHeader ?? null
+      userId: normalizedUserId
     };
   }
 }

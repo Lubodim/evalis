@@ -50,7 +50,12 @@ export class AssessmentsController {
       throw new BadRequestException("Missing x-user-id header.");
     }
 
-    const normalizedRole = roleHeader.toUpperCase();
+    const normalizedRole = roleHeader.trim().toUpperCase();
+    const normalizedUserId = userIdHeader.trim();
+
+    if (!normalizedUserId) {
+      throw new BadRequestException("Missing x-user-id header.");
+    }
 
     if (normalizedRole !== UserRole.TEACHER) {
       throw new BadRequestException("Only TEACHER requests are supported for this endpoint.");
@@ -58,8 +63,7 @@ export class AssessmentsController {
 
     return {
       role: UserRole.TEACHER,
-      userId: userIdHeader
+      userId: normalizedUserId
     };
   }
 }
-

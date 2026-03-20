@@ -51,16 +51,8 @@ export class ClassesService {
   }
 
   async findOneForUser(id: string, currentUser: RequestUser) {
-    const where =
-      currentUser.role === UserRole.SCHOOL_ADMIN
-        ? { id }
-        : {
-            id,
-            teacherId: currentUser.userId ?? undefined
-          };
-
-    return this.prisma.schoolClass.findFirst({
-      where,
+    const schoolClass = await this.prisma.schoolClass.findUnique({
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -69,6 +61,7 @@ export class ClassesService {
         description: true,
         createdAt: true,
         updatedAt: true,
+        teacherId: true,
         teacher: {
           select: {
             id: true,
@@ -112,5 +105,16 @@ export class ClassesService {
         }
       }
     });
+
+    if (!schoolClass) {
+      return null;
+    }
+
+    if (currentUser.role === UserRole.TEACHER && schoolClass.teacherId !== currentUser.userId) {
+      return null;
+    }
+
+    const { teacherId: _, ...classData } = schoolClass;
+    return classData;
   }
 }

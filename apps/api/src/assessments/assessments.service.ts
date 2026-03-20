@@ -98,17 +98,17 @@ export class AssessmentsService {
   }
 
   private async ensureTeacherClassExists(classId: string, teacherId: string) {
-    const schoolClass = await this.prisma.schoolClass.findFirst({
+    const schoolClass = await this.prisma.schoolClass.findUnique({
       where: {
-        id: classId,
-        teacherId
+        id: classId
       },
       select: {
-        id: true
+        id: true,
+        teacherId: true
       }
     });
 
-    if (!schoolClass) {
+    if (!schoolClass || schoolClass.teacherId !== teacherId) {
       throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
     }
   }
