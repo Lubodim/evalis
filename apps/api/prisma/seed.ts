@@ -178,7 +178,10 @@ async function main() {
     superAdminEmail: superAdmin.email,
     schoolAdminEmail: schoolAdmin.email,
     teacherEmail: teacher.email,
+    teacherUserId: teacher.id,
     studentEmail: student.email,
+    studentUserId: student.id,
+    studentProfileId: student.studentProfile.id,
     parentEmail: parent.email,
     schoolClassId: schoolClass.id,
     assessmentId: assessment.id
