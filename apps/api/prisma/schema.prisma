@@ -39,6 +39,11 @@ enum ExamSessionParticipantStatus {
   APPROVED
 }
 
+enum ExamSessionDeviceStatus {
+  PENDING
+  APPROVED
+}
+
 enum QuestionType {
   SHORT_TEXT
   LONG_TEXT
@@ -230,6 +235,19 @@ model ExamSessionParticipant {
   updatedAt        DateTime                     @updatedAt
   examSession      ExamSession                  @relation(fields: [examSessionId], references: [id])
   studentProfile   StudentProfile               @relation(fields: [studentProfileId], references: [id])
+  device           ExamSessionDevice?
 
   @@unique([examSessionId, studentProfileId])
+}
+
+model ExamSessionDevice {
+  id                       String                  @id @default(cuid())
+  examSessionParticipantId String                  @unique
+  status                   ExamSessionDeviceStatus @default(PENDING)
+  deviceCode               String                  @unique
+  joinedAt                 DateTime                @default(now())
+  approvedAt               DateTime?
+  createdAt                DateTime                @default(now())
+  updatedAt                DateTime                @updatedAt
+  participant              ExamSessionParticipant  @relation(fields: [examSessionParticipantId], references: [id])
 }

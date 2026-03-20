@@ -1,10 +1,22 @@
+import { randomUUID } from "crypto";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import {
+  ExamSessionDeviceStatus,
   ExamSessionParticipantStatus,
   ExamSessionStatus,
   Prisma
 } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
+
+const examSessionDeviceSelect = Prisma.validator<Prisma.ExamSessionDeviceSelect>()({
+  id: true,
+  status: true,
+  deviceCode: true,
+  joinedAt: true,
+  approvedAt: true,
+  createdAt: true,
+  updatedAt: true
+});
 
 const teacherExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
   id: true,
@@ -43,6 +55,7 @@ const teacherExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
       approvedAt: true,
       createdAt: true,
       updatedAt: true,
+      studentProfileId: true,
       studentProfile: {
         select: {
           id: true,
@@ -56,6 +69,9 @@ const teacherExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
             }
           }
         }
+      },
+      device: {
+        select: examSessionDeviceSelect
       }
     }
   }
@@ -95,10 +111,19 @@ const studentExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
       approvedAt: true,
       createdAt: true,
       updatedAt: true,
-      studentProfileId: true
+      studentProfileId: true,
+      device: {
+        select: examSessionDeviceSelect
+      }
     }
   }
 });
+
+type StudentExamSessionView = Prisma.ExamSessionGetPayload<{
+  select: typeof studentExamSessionSelect;
+}>;
+
+type StudentExamSessionParticipantView = StudentExamSessionView["participants"][number];
 
 @Injectable()
 export class ExamSessionsService {
@@ -155,6 +180,27 @@ export class ExamSessionsService {
     return examSession;
   }
 
+  async findDevicesForTeacher(examSessionId: string, teacherId: string) {
+    const examSession = await this.findOneForTeacher(examSessionId, teacherId);
+
+    return {
+      id: examSession.id,
+      status: examSession.status,
+      startsAt: examSession.startsAt,
+      endedAt: examSession.endedAt,
+      assessment: examSession.assessment,
+      participants: examSession.participants.map((participant) => ({
+        id: participant.id,
+        status: participant.status,
+        joinedAt: participant.joinedAt,
+        approvedAt: participant.approvedAt,
+        studentProfileId: participant.studentProfileId,
+        studentProfile: participant.studentProfile,
+        device: participant.device
+      }))
+    };
+  }
+
   async approveParticipant(examSessionId: string, studentProfileId: string, teacherId: string) {
     const examSession = await this.prisma.examSession.findFirst({
       where: {
@@ -207,6 +253,72 @@ export class ExamSessionsService {
     });
 
     return this.findOneForTeacher(examSessionId, teacherId);
+  }
+
+  async approveParticipantDevice(examSessionId: string, studentProfileId: string, teacherId: string) {
+    const examSession = await this.prisma.examSession.findFirst({
+      where: {
+        id: examSessionId,
+        teacherId
+      },
+      select: {
+        id: true,
+        status: true
+      }
+    });
+
+    if (!examSession) {
+      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
+    }
+
+    if (examSession.status !== ExamSessionStatus.WAITING) {
+      throw new BadRequestException("Devices can only be approved while the exam session is WAITING.");
+    }
+
+    const participant = await this.prisma.examSessionParticipant.findUnique({
+      where: {
+        examSessionId_studentProfileId: {
+          examSessionId,
+          studentProfileId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!participant) {
+      throw new NotFoundException(
+        `Student ${studentProfileId} has not joined exam session ${examSessionId}.`
+      );
+    }
+
+    const device = await this.prisma.examSessionDevice.findUnique({
+      where: {
+        examSessionParticipantId: participant.id
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!device) {
+      throw new NotFoundException(
+        `Student ${studentProfileId} has not registered a device for exam session ${examSessionId}.`
+      );
+    }
+
+    await this.prisma.examSessionDevice.update({
+      where: {
+        examSessionParticipantId: participant.id
+      },
+      data: {
+        status: ExamSessionDeviceStatus.APPROVED,
+        approvedAt: new Date()
+      }
+    });
+
+    return this.findDevicesForTeacher(examSessionId, teacherId);
   }
 
   async start(examSessionId: string, teacherId: string) {
@@ -277,14 +389,12 @@ export class ExamSessionsService {
 
   async join(examSessionId: string, studentIdentity: string) {
     const studentProfile = await this.getStudentProfile(studentIdentity);
-    const examSession = await this.findStudentAccessibleSession(examSessionId, studentProfile.id);
+    const examSession = await this.findStudentJoinableSession(examSessionId, studentProfile.id);
 
-    const existingParticipant = examSession.participants.find(
-      (participant) => participant.studentProfileId === studentProfile.id
-    );
+    const existingParticipant = this.findStudentParticipant(examSession, studentProfile.id);
 
     if (existingParticipant) {
-      return this.findOneForStudent(examSessionId, studentProfile.id);
+      return this.buildStudentSessionResponse(examSession, studentProfile.id);
     }
 
     if (examSession.status !== ExamSessionStatus.WAITING) {
@@ -301,11 +411,69 @@ export class ExamSessionsService {
     return this.findOneForStudent(examSessionId, studentProfile.id);
   }
 
+  async createOrGetDevice(examSessionId: string, studentIdentity: string) {
+    const studentProfile = await this.getStudentProfile(studentIdentity);
+    let examSession = await this.findStudentJoinableSession(examSessionId, studentProfile.id);
+    let participant = this.findStudentParticipant(examSession, studentProfile.id);
+
+    if (!participant) {
+      if (examSession.status !== ExamSessionStatus.WAITING) {
+        throw new BadRequestException("This exam session is not open for joining.");
+      }
+
+      await this.prisma.examSessionParticipant.create({
+        data: {
+          examSessionId,
+          studentProfileId: studentProfile.id
+        }
+      });
+
+      examSession = await this.findStudentJoinedSession(examSessionId, studentProfile.id);
+      participant = this.findStudentParticipant(examSession, studentProfile.id);
+    }
+
+    if (!participant) {
+      throw new NotFoundException(`Student ${studentProfile.id} could not join exam session ${examSessionId}.`);
+    }
+
+    if (participant.device) {
+      return this.buildStudentDeviceResponse(examSession, participant);
+    }
+
+    if (examSession.status !== ExamSessionStatus.WAITING) {
+      throw new BadRequestException("Devices can only be registered while the exam session is WAITING.");
+    }
+
+    await this.prisma.examSessionDevice.create({
+      data: {
+        examSessionParticipantId: participant.id,
+        deviceCode: `device-${randomUUID()}`
+      }
+    });
+
+    return this.findDeviceForStudent(examSessionId, studentProfile.id);
+  }
+
+  async findDeviceForStudent(examSessionId: string, studentIdentity: string) {
+    const studentProfile = await this.getStudentProfile(studentIdentity);
+    const examSession = await this.findStudentJoinedSession(examSessionId, studentProfile.id);
+    const participant = this.findStudentParticipant(examSession, studentProfile.id);
+
+    return this.buildStudentDeviceResponse(examSession, participant);
+  }
+
   async findOneForStudent(examSessionId: string, studentIdentity: string) {
     const studentProfile = await this.getStudentProfile(studentIdentity);
-    const examSession = await this.findStudentAccessibleSession(examSessionId, studentProfile.id);
-    const participant =
-      examSession.participants.find((item) => item.studentProfileId === studentProfile.id) ?? null;
+    const examSession = await this.findStudentJoinedSession(examSessionId, studentProfile.id);
+
+    return this.buildStudentSessionResponse(examSession, studentProfile.id);
+  }
+
+  private buildStudentSessionResponse(
+    examSession: StudentExamSessionView,
+    studentProfileId: string
+  ) {
+    const participant = this.findStudentParticipant(examSession, studentProfileId);
 
     return {
       id: examSession.id,
@@ -315,17 +483,42 @@ export class ExamSessionsService {
       createdAt: examSession.createdAt,
       updatedAt: examSession.updatedAt,
       assessment: examSession.assessment,
-      participant: participant
-        ? {
-            id: participant.id,
-            status: participant.status,
-            joinedAt: participant.joinedAt,
-            approvedAt: participant.approvedAt,
-            createdAt: participant.createdAt,
-            updatedAt: participant.updatedAt
-          }
-        : null
+      participant: participant ? this.buildStudentParticipantResponse(participant) : null
     };
+  }
+
+  private buildStudentDeviceResponse(
+    examSession: StudentExamSessionView,
+    participant: StudentExamSessionParticipantView | null
+  ) {
+    return {
+      examSessionId: examSession.id,
+      examSessionStatus: examSession.status,
+      startsAt: examSession.startsAt,
+      endedAt: examSession.endedAt,
+      assessment: examSession.assessment,
+      participant: participant ? this.buildStudentParticipantResponse(participant) : null,
+      device: participant?.device ?? null
+    };
+  }
+
+  private buildStudentParticipantResponse(participant: StudentExamSessionParticipantView) {
+    return {
+      id: participant.id,
+      status: participant.status,
+      joinedAt: participant.joinedAt,
+      approvedAt: participant.approvedAt,
+      createdAt: participant.createdAt,
+      updatedAt: participant.updatedAt,
+      device: participant.device
+    };
+  }
+
+  private findStudentParticipant(
+    examSession: StudentExamSessionView,
+    studentProfileId: string
+  ) {
+    return examSession.participants.find((participant) => participant.studentProfileId === studentProfileId) ?? null;
   }
 
   private async ensureTeacherAssessmentExists(assessmentId: string, teacherId: string) {
@@ -365,27 +558,63 @@ export class ExamSessionsService {
     return studentProfile;
   }
 
-  private async findStudentAccessibleSession(examSessionId: string, studentProfileId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
+  private async findStudentJoinableSession(examSessionId: string, studentProfileId: string) {
+    const examSession = await this.findExamSessionById(examSessionId);
+
+    await this.ensureStudentEnrollment(
+      examSession.assessment.schoolClass.id,
+      examSessionId,
+      studentProfileId
+    );
+
+    return examSession;
+  }
+
+  private async findStudentJoinedSession(examSessionId: string, studentProfileId: string) {
+    const examSession = await this.findStudentJoinableSession(examSessionId, studentProfileId);
+    const participant = this.findStudentParticipant(examSession, studentProfileId);
+
+    if (!participant) {
+      throw new NotFoundException(`Exam session ${examSessionId} was not found for this student.`);
+    }
+
+    return examSession;
+  }
+
+  private async findExamSessionById(examSessionId: string) {
+    const examSession = await this.prisma.examSession.findUnique({
       where: {
-        id: examSessionId,
-        assessment: {
-          schoolClass: {
-            enrollments: {
-              some: {
-                studentProfileId
-              }
-            }
-          }
-        }
+        id: examSessionId
       },
       select: studentExamSessionSelect
     });
 
     if (!examSession) {
-      throw new NotFoundException(`Exam session ${examSessionId} was not found for this student.`);
+      throw new NotFoundException(`Exam session ${examSessionId} was not found.`);
     }
 
     return examSession;
+  }
+
+  private async ensureStudentEnrollment(
+    schoolClassId: string,
+    examSessionId: string,
+    studentProfileId: string
+  ) {
+    const enrollment = await this.prisma.enrollment.findUnique({
+      where: {
+        schoolClassId_studentProfileId: {
+          schoolClassId,
+          studentProfileId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!enrollment) {
+      throw new NotFoundException(`Exam session ${examSessionId} was not found for this student.`);
+    }
   }
 }

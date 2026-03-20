@@ -38,6 +38,16 @@ export class TeacherExamSessionsController {
     return this.examSessionsService.findOneForTeacher(examSessionId, currentUser.userId);
   }
 
+  @Get("exam-sessions/:examSessionId/devices")
+  async findDevices(
+    @Param("examSessionId") examSessionId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    return this.examSessionsService.findDevicesForTeacher(examSessionId, currentUser.userId);
+  }
+
   @Post("exam-sessions/:examSessionId/participants/:studentProfileId/approve")
   async approveParticipant(
     @Param("examSessionId") examSessionId: string,
@@ -47,6 +57,21 @@ export class TeacherExamSessionsController {
   ) {
     const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
     return this.examSessionsService.approveParticipant(examSessionId, studentProfileId, currentUser.userId);
+  }
+
+  @Post("exam-sessions/:examSessionId/participants/:studentProfileId/device/approve")
+  async approveParticipantDevice(
+    @Param("examSessionId") examSessionId: string,
+    @Param("studentProfileId") studentProfileId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    return this.examSessionsService.approveParticipantDevice(
+      examSessionId,
+      studentProfileId,
+      currentUser.userId
+    );
   }
 
   @Post("exam-sessions/:examSessionId/start")

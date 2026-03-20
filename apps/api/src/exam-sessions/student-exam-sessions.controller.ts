@@ -18,6 +18,24 @@ export class StudentExamSessionsController {
     return this.examSessionsService.join(examSessionId, currentStudent.studentId);
   }
 
+  @Post("exam-sessions/:examSessionId/device")
+  async createOrGetDevice(
+    @Param("examSessionId") examSessionId: string,
+    @Headers("x-student-id") studentIdHeader?: string
+  ) {
+    const currentStudent = this.getStudentIdentity(studentIdHeader);
+    return this.examSessionsService.createOrGetDevice(examSessionId, currentStudent.studentId);
+  }
+
+  @Get("exam-sessions/:examSessionId/device")
+  async findDevice(
+    @Param("examSessionId") examSessionId: string,
+    @Headers("x-student-id") studentIdHeader?: string
+  ) {
+    const currentStudent = this.getStudentIdentity(studentIdHeader);
+    return this.examSessionsService.findDeviceForStudent(examSessionId, currentStudent.studentId);
+  }
+
   @Get("exam-sessions/:examSessionId")
   async findOne(
     @Param("examSessionId") examSessionId: string,
