@@ -200,6 +200,61 @@ export class ExamSessionsService {
       }))
     };
   }
+  async findAssessmentExamContext(assessmentId: string, studentIdentity: string) {
+    const studentProfile = await this.getStudentProfile(studentIdentity);
+    await this.ensureStudentAssessmentAccess(assessmentId, studentProfile.id);
+
+    const openExamSession = await this.prisma.examSession.findFirst({
+      where: {
+        assessmentId,
+        status: {
+          in: [ExamSessionStatus.WAITING, ExamSessionStatus.ACTIVE]
+        }
+      },
+      select: {
+        id: true,
+        status: true,
+        participants: {
+          where: {
+            studentProfileId: studentProfile.id
+          },
+          select: {
+            status: true,
+            device: {
+              select: {
+                status: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!openExamSession) {
+      return {
+        assessmentId,
+        hasExamSession: false,
+        examSessionId: null,
+        examSessionStatus: null,
+        participantStatus: null,
+        hasDevice: false,
+        deviceStatus: null
+      };
+    }
+
+    const participant = openExamSession.participants[0] ?? null;
+    const device = participant?.device ?? null;
+
+    return {
+      assessmentId,
+      hasExamSession: true,
+      examSessionId: openExamSession.id,
+      examSessionStatus: openExamSession.status,
+      participantStatus: participant?.status ?? null,
+      hasDevice: Boolean(device),
+      deviceStatus: device?.status ?? null
+    };
+  }
 
   async approveParticipant(examSessionId: string, studentProfileId: string, teacherId: string) {
     const examSession = await this.prisma.examSession.findFirst({
@@ -594,6 +649,28 @@ export class ExamSessionsService {
     }
 
     return examSession;
+  }
+
+  private async ensureStudentAssessmentAccess(assessmentId: string, studentProfileId: string) {
+    const assessment = await this.prisma.assessment.findFirst({
+      where: {
+        id: assessmentId,
+        schoolClass: {
+          enrollments: {
+            some: {
+              studentProfileId
+            }
+          }
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!assessment) {
+      throw new NotFoundException(`Assessment ${assessmentId} was not found for this student.`);
+    }
   }
 
   private async ensureStudentEnrollment(

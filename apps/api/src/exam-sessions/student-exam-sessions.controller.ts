@@ -36,6 +36,15 @@ export class StudentExamSessionsController {
     return this.examSessionsService.findDeviceForStudent(examSessionId, currentStudent.studentId);
   }
 
+  @Get("assessments/:assessmentId/exam-context")
+  async findAssessmentExamContext(
+    @Param("assessmentId") assessmentId: string,
+    @Headers("x-student-id") studentIdHeader?: string
+  ) {
+    const currentStudent = this.getStudentIdentity(studentIdHeader);
+    return this.examSessionsService.findAssessmentExamContext(assessmentId, currentStudent.studentId);
+  }
+
   @Get("exam-sessions/:examSessionId")
   async findOne(
     @Param("examSessionId") examSessionId: string,

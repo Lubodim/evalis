@@ -1,5 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
-import { AssessmentReviewMode, Prisma, SubmissionStatus } from "@prisma/client";
+import {
+  AssessmentReviewMode,
+  ExamSessionDeviceStatus,
+  ExamSessionParticipantStatus,
+  ExamSessionStatus,
+  Prisma,
+  SubmissionStatus
+} from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { GradeSubmissionDto } from "./dto/grade-submission.dto";
 import { SubmitAnswersDto } from "./dto/submit-answers.dto";
@@ -170,7 +177,7 @@ const teacherSubmissionDetailSelect = Prisma.validator<Prisma.SubmissionSelect>(
 const reviewSubmissionSelect = Prisma.validator<Prisma.SubmissionSelect>()({
   id: true,
   status: true,
-  submittedAt: true,
+ submittedAt: true,
   createdAt: true,
   updatedAt: true,
   assessment: {
@@ -305,6 +312,7 @@ export class SubmissionsService {
   async createForAssessment(assessmentId: string, studentIdentity: string) {
     const studentProfile = await this.getStudentProfile(studentIdentity);
     await this.ensureAssessmentIsAssigned(assessmentId, studentProfile.id);
+    await this.ensureStudentCanAccessActiveExamSession(assessmentId, studentProfile.id);
 
     return this.prisma.submission.upsert({
       where: {
@@ -405,6 +413,7 @@ export class SubmissionsService {
       select: {
         id: true,
         status: true,
+        assessmentId: true,
         assessment: {
           select: {
             questions: {
@@ -420,6 +429,8 @@ export class SubmissionsService {
     if (!submission) {
       throw new NotFoundException(`Submission ${submissionId} was not found for this student.`);
     }
+
+    await this.ensureStudentCanAccessActiveExamSession(submission.assessmentId, studentProfile.id);
 
     if (submission.status !== SubmissionStatus.DRAFT) {
       throw new BadRequestException(`Submission ${submissionId} is no longer editable.`);
@@ -691,6 +702,65 @@ export class SubmissionsService {
     });
 
     return this.findSubmissionForTeacher(submissionId, teacherId);
+  }
+
+  private async ensureStudentCanAccessActiveExamSession(
+    assessmentId: string,
+    studentProfileId: string
+  ) {
+    const activeExamSession = await this.prisma.examSession.findFirst({
+      where: {
+        assessmentId,
+        status: ExamSessionStatus.ACTIVE
+      },
+      select: {
+        id: true,
+        participants: {
+          where: {
+            studentProfileId
+          },
+          select: {
+            id: true,
+            status: true,
+            device: {
+              select: {
+                status: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!activeExamSession) {
+      return;
+    }
+
+    const participant = activeExamSession.participants[0];
+
+    if (!participant) {
+      throw new BadRequestException(
+        `Assessment ${assessmentId} currently has an ACTIVE exam session. Join the exam session before creating or submitting work.`
+      );
+    }
+
+    if (participant.status !== ExamSessionParticipantStatus.APPROVED) {
+      throw new BadRequestException(
+        `Your exam session participation for assessment ${assessmentId} is not approved yet.`
+      );
+    }
+
+    if (!participant.device) {
+      throw new BadRequestException(
+        `Assessment ${assessmentId} currently requires an approved exam device before creating or submitting work.`
+      );
+    }
+
+    if (participant.device.status !== ExamSessionDeviceStatus.APPROVED) {
+      throw new BadRequestException(
+        `Your exam device for assessment ${assessmentId} is not approved yet.`
+      );
+    }
   }
 
   private async getStudentProfile(studentIdentity: string) {
