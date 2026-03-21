@@ -11,14 +11,21 @@ type DevicePanelProps = {
 
 function renderValue(value: string | boolean | null | undefined) {
   if (value === null || value === undefined) {
-    return "Not available";
+    return "Няма данни";
   }
 
   if (typeof value === "boolean") {
-    return value ? "Yes" : "No";
+    return value ? "Да" : "Не";
   }
 
-  return value;
+  switch (value) {
+    case "PENDING":
+      return "Чака одобрение";
+    case "APPROVED":
+      return "Одобрено";
+    default:
+      return value;
+  }
 }
 
 export function DevicePanel({
@@ -32,9 +39,9 @@ export function DevicePanel({
   if (!examSessionId) {
     return (
       <section className="card">
-        <p className="eyebrow">Device</p>
-        <h2>Device state</h2>
-        <p>Device state is unavailable because there is no exam session for this assessment.</p>
+        <p className="eyebrow">Устройство</p>
+        <h2>Състояние на устройството</h2>
+        <p>Няма налична изпитна сесия, затова няма и данни за устройство.</p>
       </section>
     );
   }
@@ -42,9 +49,9 @@ export function DevicePanel({
   if (loading) {
     return (
       <section className="card">
-        <p className="eyebrow">Device</p>
-        <h2>Device state</h2>
-        <p>Loading device state...</p>
+        <p className="eyebrow">Устройство</p>
+        <h2>Състояние на устройството</h2>
+        <p>Зареждане на данните за устройството...</p>
       </section>
     );
   }
@@ -54,18 +61,18 @@ export function DevicePanel({
 
   return (
     <section className="card">
-      <p className="eyebrow">Device</p>
-      <h2>Device state</h2>
-      <p>Exam session ID: {renderValue(examSessionId)}</p>
-      <p>Has device: {renderValue(hasDevice)}</p>
-      <p>Device status: {renderValue(deviceState?.device?.status ?? null)}</p>
-      <p>Device code: {renderValue(deviceState?.device?.deviceCode ?? null)}</p>
+      <p className="eyebrow">Устройство</p>
+      <h2>Състояние на устройството</h2>
+      <p>Сесия ID: {renderValue(examSessionId)}</p>
+      <p>Има устройство: {renderValue(hasDevice)}</p>
+      <p>Статус: {renderValue(deviceState?.device?.status ?? null)}</p>
+      <p>Код на устройството: {renderValue(deviceState?.device?.deviceCode ?? null)}</p>
       {canRegisterDevice ? (
         <button type="button" disabled={pending} onClick={onRegister}>
-          {pending ? "Registering..." : "Register device"}
+          {pending ? "Регистриране..." : "Регистрирай устройство"}
         </button>
       ) : null}
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? <p>Грешка: {errorMessage}</p> : null}
     </section>
   );
 }

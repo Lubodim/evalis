@@ -19,6 +19,19 @@ function buildInitialAnswers(submission: StudentSubmissionDetail) {
   ) as Record<string, string>;
 }
 
+function formatSubmissionStatus(value: StudentSubmissionDetail["status"]) {
+  switch (value) {
+    case "DRAFT":
+      return "Чернова";
+    case "SUBMITTED":
+      return "Предадено";
+    case "GRADED":
+      return "Проверено";
+    default:
+      return value;
+  }
+}
+
 export function AnswerForm({ submission, studentId }: AnswerFormProps) {
   const router = useRouter();
   const [answers, setAnswers] = useState<Record<string, string>>(
@@ -30,9 +43,9 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
   if (!submission) {
     return (
       <section className="card">
-        <p className="eyebrow">Answers</p>
-        <h2>Submission content</h2>
-        <p>Submission data is not available yet.</p>
+        <p className="eyebrow">Отговори</p>
+        <h2>Съдържание на предаването</h2>
+        <p>Данните за предаването не са налични.</p>
       </section>
     );
   }
@@ -47,12 +60,12 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
     event.preventDefault();
 
     if (!studentId) {
-      setErrorMessage("Student identity is not available for answer submission.");
+      setErrorMessage("Липсва студентска идентификация за изпращане на отговорите.");
       return;
     }
 
     if (!isEditable) {
-      setErrorMessage("This submission is no longer editable.");
+      setErrorMessage("Това предаване вече не може да се редактира.");
       return;
     }
 
@@ -64,7 +77,7 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
     const emptyAnswer = payloadAnswers.find((answer) => !answer.answerText);
 
     if (emptyAnswer) {
-      setErrorMessage("Please complete all supported answers before submitting.");
+      setErrorMessage("Моля, попълни всички поддържани отговори преди изпращане.");
       return;
     }
 
@@ -76,7 +89,9 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
       });
       router.refresh();
     } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Failed to submit answers.");
+      setErrorMessage(
+        error instanceof Error ? `Грешка: ${error.message}` : "Неуспешно изпращане на отговорите."
+      );
     } finally {
       setIsPending(false);
     }
@@ -84,22 +99,21 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
 
   return (
     <section className="card">
-      <p className="eyebrow">Answers</p>
-      <h2>Submission content</h2>
+      <p className="eyebrow">Отговори</p>
+      <h2>Съдържание на предаването</h2>
       <p>
-        This form supports the current short-text question flow. Unsupported question types remain read-only until a
-        later step.
+        Тук можеш да попълниш кратките текстови въпроси. Неподдържаните типове засега се показват само за преглед.
       </p>
       <form onSubmit={handleSubmit}>
-        {questions.length === 0 ? <p>No question details are available for this submission yet.</p> : null}
+        {questions.length === 0 ? <p>Все още няма налични въпроси за това предаване.</p> : null}
         {supportedQuestions.map((question) => (
           <article key={question.id} className="card">
-            <p className="eyebrow">Question {question.orderIndex}</p>
+            <p className="eyebrow">Въпрос {question.orderIndex}</p>
             <h3>{question.prompt}</h3>
-            <p>Type: {question.type}</p>
-            <p>Max points: {question.maxPoints}</p>
+            <p>Тип: {question.type}</p>
+            <p>Максимум точки: {question.maxPoints}</p>
             <label>
-              <span>Your answer</span>
+              <span>Твоят отговор</span>
               <input
                 type="text"
                 value={answers[question.id] ?? ""}
@@ -117,18 +131,18 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
         ))}
         {unsupportedQuestions.map((question) => (
           <article key={question.id} className="card">
-            <p className="eyebrow">Question {question.orderIndex}</p>
+            <p className="eyebrow">Въпрос {question.orderIndex}</p>
             <h3>{question.prompt}</h3>
-            <p>Type: {question.type}</p>
-            <p>This question type is not editable in the frontend yet.</p>
+            <p>Тип: {question.type}</p>
+            <p>Този тип въпрос все още не се редактира от интерфейса.</p>
           </article>
         ))}
         {!isEditable ? (
-          <p>This submission is already {currentSubmission.status.toLowerCase()} and can no longer be edited.</p>
+          <p>Това предаване е със статус „{formatSubmissionStatus(currentSubmission.status)}“ и не може да се редактира.</p>
         ) : null}
         {supportedQuestions.length > 0 && isEditable ? (
           <button type="submit" disabled={isPending}>
-            {isPending ? "Submitting answers..." : "Submit answers"}
+            {isPending ? "Изпращане..." : "Предай отговорите"}
           </button>
         ) : null}
         {errorMessage ? <p>{errorMessage}</p> : null}

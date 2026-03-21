@@ -6,19 +6,47 @@ type ReviewPanelProps = {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "Not available";
+    return "Няма данни";
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("bg-BG");
+}
+
+function formatStatus(value: string | undefined) {
+  switch (value) {
+    case "DRAFT":
+      return "Чернова";
+    case "SUBMITTED":
+      return "Предадено";
+    case "GRADED":
+      return "Проверено";
+    default:
+      return value ?? "Няма данни";
+  }
+}
+
+function formatReviewMode(value: string | undefined) {
+  switch (value) {
+    case "NONE":
+      return "Без преглед";
+    case "SCORE_ONLY":
+      return "Само резултат";
+    case "ANSWERS_NO_EXPLANATIONS":
+      return "Отговори без обяснения";
+    case "ANSWERS_WITH_EXPLANATIONS":
+      return "Отговори с обяснения";
+    default:
+      return value ?? "Няма данни";
+  }
 }
 
 export function ReviewPanel({ review }: ReviewPanelProps) {
   if (!review) {
     return (
       <section className="card">
-        <p className="eyebrow">Review</p>
-        <h2>Review</h2>
-        <p>Review data is not available yet.</p>
+        <p className="eyebrow">Преглед</p>
+        <h2>Резултати и преглед</h2>
+        <p>Няма налични данни за преглед.</p>
       </section>
     );
   }
@@ -29,40 +57,38 @@ export function ReviewPanel({ review }: ReviewPanelProps) {
 
   return (
     <section className="card">
-      <p className="eyebrow">Review</p>
-      <h2>Review details</h2>
-      <p>Submission status: {review.status}</p>
-      <p>Assessment: {review.assessment.title ?? "Not available"}</p>
-      <p>Review mode: {review.assessment.reviewMode ?? "Not available"}</p>
-      <p>Review available at: {formatDate(review.assessment.reviewAvailableAt ?? null)}</p>
+      <p className="eyebrow">Преглед</p>
+      <h2>Резултати и преглед</h2>
+      <p>Статус на предаването: {formatStatus(review.status)}</p>
+      <p>Оценяване: {review.assessment.title ?? "Няма заглавие"}</p>
+      <p>Режим на преглед: {formatReviewMode(review.assessment.reviewMode)}</p>
+      <p>Достъпно от: {formatDate(review.assessment.reviewAvailableAt ?? null)}</p>
 
       {hasScore ? (
         <section className="card">
-          <p className="eyebrow">Score</p>
-          <h3>Result summary</h3>
-          <p>Total score: {review.result?.totalScore ?? "Not available"}</p>
-          <p>Max score: {review.result?.maxScore ?? "Not available"}</p>
-          <p>Percentage: {review.result?.percentage ?? "Not available"}</p>
-          <p>Published at: {formatDate(review.result?.publishedAt ?? null)}</p>
+          <p className="eyebrow">Резултат</p>
+          <h3>Обобщение</h3>
+          <p>Общо точки: {review.result?.totalScore ?? "Няма данни"}</p>
+          <p>Максимум точки: {review.result?.maxScore ?? "Няма данни"}</p>
+          <p>Процент: {review.result?.percentage ?? "Няма данни"}</p>
+          <p>Публикувано на: {formatDate(review.result?.publishedAt ?? null)}</p>
         </section>
       ) : null}
 
-      {hasAnswers ? (
-        review.answers.map((answer) => (
-          <article key={answer.id} className="card">
-            <p className="eyebrow">Question Review</p>
-            <h3>{answer.question?.prompt ?? `Question ${answer.questionId}`}</h3>
-            <p>Your answer: {answer.answerText ?? answer.selectedOption ?? "Not available"}</p>
-            <p>Points awarded: {answer.pointsAwarded ?? "Not available"}</p>
-            <p>Updated at: {formatDate(answer.updatedAt)}</p>
-            {answer.teacherFeedback ? <p>Teacher feedback: {answer.teacherFeedback}</p> : null}
-          </article>
-        ))
-      ) : null}
+      {hasAnswers
+        ? review.answers.map((answer) => (
+            <article key={answer.id} className="card">
+              <p className="eyebrow">Преглед на въпрос</p>
+              <h3>{answer.question?.prompt ?? `Въпрос ${answer.questionId}`}</h3>
+              <p>Твоят отговор: {answer.answerText ?? answer.selectedOption ?? "Няма данни"}</p>
+              <p>Присъдени точки: {answer.pointsAwarded ?? "Няма данни"}</p>
+              <p>Обновено на: {formatDate(answer.updatedAt)}</p>
+              {answer.teacherFeedback ? <p>Обратна връзка: {answer.teacherFeedback}</p> : null}
+            </article>
+          ))
+        : null}
 
-      {isRestricted ? (
-        <p>Review details are not available for this submission right now.</p>
-      ) : null}
+      {isRestricted ? <p>Подробният преглед за това предаване все още не е достъпен.</p> : null}
     </section>
   );
 }

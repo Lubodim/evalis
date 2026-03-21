@@ -7,12 +7,12 @@ type AssessmentListProps = {
 
 export function AssessmentList({
   children,
-  description = "Your assigned assessments will appear here."
+  description = "Тук ще виждаш възложените ти оценявания."
 }: AssessmentListProps) {
   return (
     <section className="card">
-      <p className="eyebrow">Student Assessments</p>
-      <h1>Assigned assessments</h1>
+      <p className="eyebrow">Оценявания</p>
+      <h1>Моите оценявания</h1>
       <p>{description}</p>
       {children}
     </section>

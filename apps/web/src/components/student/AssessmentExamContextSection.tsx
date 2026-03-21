@@ -52,7 +52,9 @@ export function AssessmentExamContextSection({
         setDeviceState(nextDeviceState);
       } catch (error) {
         setDeviceState(null);
-        setDeviceErrorMessage(error instanceof Error ? error.message : "Failed to load device state.");
+        setDeviceErrorMessage(
+          error instanceof Error ? error.message : "Данните за устройството не могат да бъдат заредени."
+        );
       } finally {
         setIsDeviceLoading(false);
       }
@@ -82,7 +84,9 @@ export function AssessmentExamContextSection({
           const refreshedContext = await getAssessmentExamContext(assessmentId, studentId);
           setExamContext(refreshedContext);
         } catch (error) {
-          setJoinErrorMessage(error instanceof Error ? error.message : "Failed to join exam session.");
+          setJoinErrorMessage(
+            error instanceof Error ? error.message : "Неуспешно присъединяване към изпитната сесия."
+          );
         }
       })();
     });
@@ -103,7 +107,9 @@ export function AssessmentExamContextSection({
           const refreshedContext = await getAssessmentExamContext(assessmentId, studentId);
           setExamContext(refreshedContext);
         } catch (error) {
-          setDeviceErrorMessage(error instanceof Error ? error.message : "Failed to register device.");
+          setDeviceErrorMessage(
+            error instanceof Error ? error.message : "Неуспешно регистриране на устройство."
+          );
         }
       })();
     });
@@ -119,7 +125,7 @@ export function AssessmentExamContextSection({
           router.push(`/student/submissions/${submission.id}`);
         } catch (error) {
           setSubmissionErrorMessage(
-            error instanceof Error ? error.message : "Failed to open submission."
+            error instanceof Error ? error.message : "Предаването не може да бъде отворено."
           );
         }
       })();

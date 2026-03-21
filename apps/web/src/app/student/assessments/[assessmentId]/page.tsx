@@ -1,4 +1,3 @@
-import { AnswerForm } from "../../../../components/student/AnswerForm";
 import { AssessmentExamContextSection } from "../../../../components/student/AssessmentExamContextSection";
 import { getAssessmentExamContext } from "../../../../lib/api/student";
 
@@ -26,30 +25,29 @@ export default async function StudentAssessmentDetailPage({
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Assessment</p>
-          <h1>Assessment {assessmentId}</h1>
-          <p>This page currently shows the backend exam context for this assessment.</p>
+          <p className="eyebrow">Оценяване</p>
+          <h1>Оценяване {assessmentId}</h1>
+          <p>Тук виждаш текущата изпитна сесия и състоянието на участието си за това оценяване.</p>
         </section>
         <AssessmentExamContextSection
           assessmentId={assessmentId}
           studentId={studentId}
           initialContext={examContext}
         />
-        <AnswerForm />
       </main>
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load exam context.";
+    const message =
+      error instanceof Error ? error.message : "Страницата не успя да зареди изпитния контекст за това оценяване.";
 
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Assessment</p>
-          <h1>Assessment {assessmentId}</h1>
-          <p>The frontend could not load the exam context for this assessment.</p>
+          <p className="eyebrow">Оценяване</p>
+          <h1>Оценяване {assessmentId}</h1>
+          <p>Страницата не успя да зареди информацията за това оценяване.</p>
           <p>{message}</p>
         </section>
-        <AnswerForm />
       </main>
     );
   }

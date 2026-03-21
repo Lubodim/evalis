@@ -16,7 +16,7 @@ export default async function StudentAssessmentsPage() {
       <main className="page">
         <AssessmentList>
           {assessments.length === 0 ? (
-            <p>No assessments are assigned yet.</p>
+            <p>Все още няма възложени оценявания.</p>
           ) : (
             assessments.map((assessment) => (
               <AssessmentCard key={assessment.id} assessment={assessment} />
@@ -26,11 +26,12 @@ export default async function StudentAssessmentsPage() {
       </main>
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load assessments.";
+    const message =
+      error instanceof Error ? error.message : "В момента списъкът с оценявания не може да бъде зареден.";
 
     return (
       <main className="page">
-        <AssessmentList description="The frontend could not load the student assessment list right now.">
+        <AssessmentList description="Тук ще виждаш възложените ти оценявания и текущото им състояние.">
           <p>{message}</p>
         </AssessmentList>
       </main>

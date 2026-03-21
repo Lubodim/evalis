@@ -2,9 +2,9 @@ export default function StudentSubmissionLoading() {
   return (
     <main className="page">
       <section className="card">
-        <p className="eyebrow">Student Submission</p>
-        <h1>Loading submission</h1>
-        <p>Loading submission detail...</p>
+        <p className="eyebrow">Предаване</p>
+        <h1>Зареждане на предаването</h1>
+        <p>Зареждане на детайлите и текущите отговори.</p>
       </section>
     </main>
   );

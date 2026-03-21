@@ -13,13 +13,13 @@ export function JoinExamButton({
 }: JoinExamButtonProps) {
   return (
     <section className="card">
-      <p className="eyebrow">Join Exam</p>
-      <h2>Join exam</h2>
-      <p>Use this action to join a waiting exam session before device approval and submission steps.</p>
+      <p className="eyebrow">Присъединяване</p>
+      <h2>Присъедини се към сесията</h2>
+      <p>Ако сесията изчаква начало, можеш да се присъединиш преди стъпките за устройство и предаване.</p>
       <button type="button" disabled={disabled || pending} onClick={onClick}>
-        {pending ? "Joining..." : "Join exam"}
+        {pending ? "Присъединяване..." : "Присъедини се"}
       </button>
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? <p>Грешка: {errorMessage}</p> : null}
     </section>
   );
 }

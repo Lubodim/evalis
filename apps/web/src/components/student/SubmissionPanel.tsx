@@ -8,6 +8,17 @@ type SubmissionPanelProps = {
   examContext?: StudentExamContext;
 };
 
+function formatExamStatus(value: string | null | undefined) {
+  switch (value) {
+    case "WAITING":
+      return "Очаква начало";
+    case "ACTIVE":
+      return "Активна";
+    default:
+      return "Няма данни";
+  }
+}
+
 export function SubmissionPanel({
   assessmentId,
   pending = false,
@@ -17,17 +28,17 @@ export function SubmissionPanel({
 }: SubmissionPanelProps) {
   return (
     <section className="card">
-      <p className="eyebrow">Submission</p>
-      <h2>Submission action</h2>
-      <p>Use the existing backend submission flow to create or continue your submission for this assessment.</p>
-      {assessmentId ? <p>Assessment ID: {assessmentId}</p> : null}
+      <p className="eyebrow">Предаване</p>
+      <h2>Начало на работа</h2>
+      <p>С този бутон можеш да започнеш ново предаване или да продължиш вече започнато.</p>
+      {assessmentId ? <p>Оценяване ID: {assessmentId}</p> : null}
       {examContext?.hasExamSession ? (
-        <p>Current exam session status: {examContext.examSessionStatus ?? "Not available"}</p>
+        <p>Статус на изпитната сесия: {formatExamStatus(examContext.examSessionStatus)}</p>
       ) : null}
       <button type="button" disabled={pending} onClick={onOpenSubmission}>
-        {pending ? "Opening submission..." : "Start or continue submission"}
+        {pending ? "Отваряне..." : "Започни или продължи"}
       </button>
-      {errorMessage ? <p>{errorMessage}</p> : null}
+      {errorMessage ? <p>Грешка: {errorMessage}</p> : null}
     </section>
   );
 }

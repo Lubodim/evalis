@@ -9,10 +9,36 @@ function resolveStudentId() {
 
 function formatDate(value: string | null) {
   if (!value) {
-    return "Not submitted yet";
+    return "Все още не е предадено";
   }
 
-  return new Date(value).toLocaleString();
+  return new Date(value).toLocaleString("bg-BG");
+}
+
+function formatStatus(value: string) {
+  switch (value) {
+    case "DRAFT":
+      return "Чернова";
+    case "SUBMITTED":
+      return "Предадено";
+    case "GRADED":
+      return "Проверено";
+    default:
+      return value;
+  }
+}
+
+function formatAssessmentType(value: string) {
+  switch (value) {
+    case "QUIZ":
+      return "Куиз";
+    case "ASSIGNMENT":
+      return "Задание";
+    case "TEST":
+      return "Тест";
+    default:
+      return value;
+  }
 }
 
 type StudentSubmissionPageProps = {
@@ -31,27 +57,28 @@ export default async function StudentSubmissionPage({ params }: StudentSubmissio
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Submission</p>
-          <h1>{submission.assessment.title ?? `Submission ${submission.id}`}</h1>
-          <p>Submission ID: {submission.id}</p>
-          <p>Status: {submission.status}</p>
-          <p>Submitted at: {formatDate(submission.submittedAt)}</p>
-          <p>Assessment title: {submission.assessment.title ?? "Not available"}</p>
-          <p>Assessment type: {submission.assessment.type}</p>
-          <p>Class: {submission.assessment.schoolClass.name}</p>
+          <p className="eyebrow">Предаване</p>
+          <h1>{submission.assessment.title ?? `Предаване ${submission.id}`}</h1>
+          <p>Предаване ID: {submission.id}</p>
+          <p>Статус: {formatStatus(submission.status)}</p>
+          <p>Предадено на: {formatDate(submission.submittedAt)}</p>
+          <p>Оценяване: {submission.assessment.title ?? "Няма заглавие"}</p>
+          <p>Тип: {formatAssessmentType(submission.assessment.type)}</p>
+          <p>Клас: {submission.assessment.schoolClass.name}</p>
         </section>
         <AnswerForm submission={submission} studentId={studentId} />
       </main>
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load submission.";
+    const message =
+      error instanceof Error ? error.message : "Страницата не успя да зареди това предаване.";
 
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Submission</p>
-          <h1>Submission {submissionId}</h1>
-          <p>The frontend could not load this submission.</p>
+          <p className="eyebrow">Предаване</p>
+          <h1>Предаване {submissionId}</h1>
+          <p>Страницата не успя да зареди това предаване.</p>
           <p>{message}</p>
         </section>
         <AnswerForm />

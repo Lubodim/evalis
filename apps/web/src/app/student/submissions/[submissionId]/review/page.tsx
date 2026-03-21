@@ -25,22 +25,23 @@ export default async function StudentSubmissionReviewPage({
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Review</p>
-          <h1>Review for submission {submissionId}</h1>
-          <p>This page shows only the review data returned by the backend.</p>
+          <p className="eyebrow">Преглед</p>
+          <h1>Преглед на предаване {submissionId}</h1>
+          <p>Тук виждаш само информацията, която е разрешена за показване по това предаване.</p>
         </section>
         <ReviewPanel review={review} />
       </main>
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Failed to load review.";
+    const message =
+      error instanceof Error ? error.message : "Страницата не успя да зареди прегледа за това предаване.";
 
     return (
       <main className="page">
         <section className="card">
-          <p className="eyebrow">Student Review</p>
-          <h1>Review for submission {submissionId}</h1>
-          <p>The frontend could not load the review for this submission.</p>
+          <p className="eyebrow">Преглед</p>
+          <h1>Преглед на предаване {submissionId}</h1>
+          <p>Страницата не успя да зареди прегледа за това предаване.</p>
           <p>{message}</p>
         </section>
         <ReviewPanel />
