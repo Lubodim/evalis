@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import {
   createOrGetStudentDevice,
+  createOrReuseSubmission,
   getAssessmentExamContext,
   getStudentDevice,
   joinExamSession
@@ -11,6 +13,7 @@ import type { StudentExamContext, StudentExamDeviceState } from "../../types/stu
 import { DevicePanel } from "./DevicePanel";
 import { ExamContextPanel } from "./ExamContextPanel";
 import { JoinExamButton } from "./JoinExamButton";
+import { SubmissionPanel } from "./SubmissionPanel";
 
 type AssessmentExamContextSectionProps = {
   assessmentId: string;
@@ -23,13 +26,16 @@ export function AssessmentExamContextSection({
   studentId,
   initialContext
 }: AssessmentExamContextSectionProps) {
+  const router = useRouter();
   const [examContext, setExamContext] = useState(initialContext);
   const [joinErrorMessage, setJoinErrorMessage] = useState<string | null>(null);
   const [deviceState, setDeviceState] = useState<StudentExamDeviceState | null>(null);
   const [deviceErrorMessage, setDeviceErrorMessage] = useState<string | null>(null);
+  const [submissionErrorMessage, setSubmissionErrorMessage] = useState<string | null>(null);
   const [isDeviceLoading, setIsDeviceLoading] = useState(Boolean(initialContext.examSessionId));
   const [isJoinPending, startJoinTransition] = useTransition();
   const [isDevicePending, startDeviceTransition] = useTransition();
+  const [isSubmissionPending, startSubmissionTransition] = useTransition();
 
   const shouldShowJoinButton =
     examContext.hasExamSession &&
@@ -103,6 +109,23 @@ export function AssessmentExamContextSection({
     });
   }
 
+  function handleOpenSubmission() {
+    setSubmissionErrorMessage(null);
+
+    startSubmissionTransition(() => {
+      void (async () => {
+        try {
+          const submission = await createOrReuseSubmission(assessmentId, studentId);
+          router.push(`/student/submissions/${submission.id}`);
+        } catch (error) {
+          setSubmissionErrorMessage(
+            error instanceof Error ? error.message : "Failed to open submission."
+          );
+        }
+      })();
+    });
+  }
+
   return (
     <>
       <ExamContextPanel context={examContext} />
@@ -116,6 +139,13 @@ export function AssessmentExamContextSection({
         pending={isDevicePending}
         errorMessage={deviceErrorMessage}
         onRegister={handleRegisterDevice}
+      />
+      <SubmissionPanel
+        assessmentId={assessmentId}
+        examContext={examContext}
+        pending={isSubmissionPending}
+        errorMessage={submissionErrorMessage}
+        onOpenSubmission={handleOpenSubmission}
       />
     </>
   );

@@ -1,16 +1,33 @@
-import type { StudentSubmissionDetail } from "../../types/student";
+import type { StudentExamContext } from "../../types/student";
 
 type SubmissionPanelProps = {
-  submission?: StudentSubmissionDetail;
+  assessmentId?: string;
+  pending?: boolean;
+  errorMessage?: string | null;
+  onOpenSubmission?: () => void;
+  examContext?: StudentExamContext;
 };
 
-export function SubmissionPanel({ submission }: SubmissionPanelProps) {
+export function SubmissionPanel({
+  assessmentId,
+  pending = false,
+  errorMessage = null,
+  onOpenSubmission,
+  examContext
+}: SubmissionPanelProps) {
   return (
     <section className="card">
       <p className="eyebrow">Submission</p>
-      <h2>Submission state placeholder</h2>
-      <p>TODO: render submission metadata, question list, and answer state using backend data.</p>
-      <p>Current placeholder state: {submission ? submission.status : "not loaded"}</p>
+      <h2>Submission action</h2>
+      <p>Use the existing backend submission flow to create or continue your submission for this assessment.</p>
+      {assessmentId ? <p>Assessment ID: {assessmentId}</p> : null}
+      {examContext?.hasExamSession ? (
+        <p>Current exam session status: {examContext.examSessionStatus ?? "Not available"}</p>
+      ) : null}
+      <button type="button" disabled={pending} onClick={onOpenSubmission}>
+        {pending ? "Opening submission..." : "Start or continue submission"}
+      </button>
+      {errorMessage ? <p>{errorMessage}</p> : null}
     </section>
   );
 }

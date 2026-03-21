@@ -1,6 +1,5 @@
 import { AnswerForm } from "../../../../components/student/AnswerForm";
 import { AssessmentExamContextSection } from "../../../../components/student/AssessmentExamContextSection";
-import { SubmissionPanel } from "../../../../components/student/SubmissionPanel";
 import { getAssessmentExamContext } from "../../../../lib/api/student";
 
 const DEFAULT_STUDENT_ID = "cmmxwfmg60004uq0w0iv5likd";
@@ -36,7 +35,6 @@ export default async function StudentAssessmentDetailPage({
           studentId={studentId}
           initialContext={examContext}
         />
-        <SubmissionPanel />
         <AnswerForm />
       </main>
     );
@@ -51,7 +49,6 @@ export default async function StudentAssessmentDetailPage({
           <p>The frontend could not load the exam context for this assessment.</p>
           <p>{message}</p>
         </section>
-        <SubmissionPanel />
         <AnswerForm />
       </main>
     );
