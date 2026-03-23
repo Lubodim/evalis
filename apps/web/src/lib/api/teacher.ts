@@ -1,7 +1,10 @@
 import { apiRequest } from "./client";
 import type {
+  TeacherAssessmentSubmissionListItem,
   TeacherExamSessionDetail,
-  TeacherExamSessionDevicesDetail
+  TeacherExamSessionDevicesDetail,
+  TeacherGradeSubmissionInput,
+  TeacherSubmissionDetail
 } from "../../types/teacher";
 
 const TEACHER_HEADERS = {
@@ -103,4 +106,52 @@ export async function approveTeacherExamParticipantDevice(
       }
     }
   );
+}
+
+export async function getTeacherAssessmentSubmissions(assessmentId: string, teacherId: string) {
+  return apiRequest<TeacherAssessmentSubmissionListItem[]>(
+    `/teacher/assessments/${assessmentId}/submissions`,
+    {
+      method: "GET",
+      headers: {
+        ...TEACHER_HEADERS,
+        "x-user-id": teacherId
+      }
+    }
+  );
+}
+
+export async function getTeacherSubmission(submissionId: string, teacherId: string) {
+  return apiRequest<TeacherSubmissionDetail>(`/teacher/submissions/${submissionId}`, {
+    method: "GET",
+    headers: {
+      ...TEACHER_HEADERS,
+      "x-user-id": teacherId
+    }
+  });
+}
+
+export async function gradeTeacherSubmission(
+  submissionId: string,
+  teacherId: string,
+  body: TeacherGradeSubmissionInput
+) {
+  return apiRequest<TeacherSubmissionDetail>(`/teacher/submissions/${submissionId}/grade`, {
+    method: "POST",
+    headers: {
+      ...TEACHER_HEADERS,
+      "x-user-id": teacherId
+    },
+    body: JSON.stringify(body)
+  });
+}
+
+export async function finalizeTeacherSubmission(submissionId: string, teacherId: string) {
+  return apiRequest<TeacherSubmissionDetail>(`/teacher/submissions/${submissionId}/finalize`, {
+    method: "POST",
+    headers: {
+      ...TEACHER_HEADERS,
+      "x-user-id": teacherId
+    }
+  });
 }
