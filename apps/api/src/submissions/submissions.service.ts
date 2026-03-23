@@ -297,6 +297,9 @@ export class SubmissionsService {
           where: {
             studentProfileId: studentProfile.id
           },
+          orderBy: {
+            createdAt: "desc"
+          },
           select: {
             id: true,
             status: true,
@@ -314,15 +317,24 @@ export class SubmissionsService {
     await this.ensureAssessmentIsAssigned(assessmentId, studentProfile.id);
     await this.ensureStudentCanAccessActiveExamSession(assessmentId, studentProfile.id);
 
-    return this.prisma.submission.upsert({
+    const existingDraftSubmission = await this.prisma.submission.findFirst({
       where: {
-        assessmentId_studentProfileId: {
-          assessmentId,
-          studentProfileId: studentProfile.id
-        }
+        assessmentId,
+        studentProfileId: studentProfile.id,
+        status: SubmissionStatus.DRAFT
       },
-      update: {},
-      create: {
+      orderBy: {
+        updatedAt: "desc"
+      },
+      select: submissionDetailSelect
+    });
+
+    if (existingDraftSubmission) {
+      return existingDraftSubmission;
+    }
+
+    return this.prisma.submission.create({
+      data: {
         assessmentId,
         studentProfileId: studentProfile.id
       },
