@@ -28,6 +28,16 @@ export class TeacherExamSessionsController {
     return this.examSessionsService.createForAssessment(assessmentId, currentUser.userId);
   }
 
+  @Get("assessments/:assessmentId/exam-sessions/current")
+  async findCurrentForAssessment(
+    @Param("assessmentId") assessmentId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    return this.examSessionsService.findCurrentForAssessment(assessmentId, currentUser.userId);
+  }
+
   @Get("exam-sessions/:examSessionId")
   async findOne(
     @Param("examSessionId") examSessionId: string,

@@ -1,5 +1,5 @@
 import { AssessmentExamContextSection } from "../../../../components/student/AssessmentExamContextSection";
-import { getAssessmentExamContext } from "../../../../lib/api/student";
+import { getAssessmentExamContext, getStudentAssessments } from "../../../../lib/api/student";
 
 const DEFAULT_STUDENT_ID = "cmmxwfmg60004uq0w0iv5likd";
 
@@ -20,7 +20,12 @@ export default async function StudentAssessmentDetailPage({
   const studentId = resolveStudentId();
 
   try {
-    const examContext = await getAssessmentExamContext(assessmentId, studentId);
+    const [examContext, assessments] = await Promise.all([
+      getAssessmentExamContext(assessmentId, studentId),
+      getStudentAssessments(studentId)
+    ]);
+    const currentAssessment = assessments.find((assessment) => assessment.id === assessmentId) ?? null;
+    const latestSubmission = currentAssessment?.submissions?.[0] ?? null;
 
     return (
       <main className="page">
@@ -33,6 +38,7 @@ export default async function StudentAssessmentDetailPage({
           assessmentId={assessmentId}
           studentId={studentId}
           initialContext={examContext}
+          latestSubmission={latestSubmission}
         />
       </main>
     );

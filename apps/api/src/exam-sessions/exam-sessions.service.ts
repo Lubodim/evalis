@@ -164,6 +164,24 @@ export class ExamSessionsService {
     return this.findOneForTeacher(examSession.id, teacherId);
   }
 
+  async findCurrentForAssessment(assessmentId: string, teacherId: string) {
+    await this.ensureTeacherAssessmentExists(assessmentId, teacherId);
+
+    return this.prisma.examSession.findFirst({
+      where: {
+        assessmentId,
+        teacherId,
+        status: {
+          in: [ExamSessionStatus.WAITING, ExamSessionStatus.ACTIVE]
+        }
+      },
+      orderBy: {
+        createdAt: "desc"
+      },
+      select: teacherExamSessionSelect
+    });
+  }
+
   async findOneForTeacher(examSessionId: string, teacherId: string) {
     const examSession = await this.prisma.examSession.findFirst({
       where: {

@@ -9,7 +9,11 @@ import {
   getStudentDevice,
   joinExamSession
 } from "../../lib/api/student";
-import type { StudentExamContext, StudentExamDeviceState } from "../../types/student";
+import type {
+  StudentExamContext,
+  StudentExamDeviceState,
+  StudentSubmissionSummary
+} from "../../types/student";
 import { DevicePanel } from "./DevicePanel";
 import { ExamContextPanel } from "./ExamContextPanel";
 import { JoinExamButton } from "./JoinExamButton";
@@ -19,12 +23,14 @@ type AssessmentExamContextSectionProps = {
   assessmentId: string;
   studentId: string;
   initialContext: StudentExamContext;
+  latestSubmission?: StudentSubmissionSummary | null;
 };
 
 export function AssessmentExamContextSection({
   assessmentId,
   studentId,
-  initialContext
+  initialContext,
+  latestSubmission = null
 }: AssessmentExamContextSectionProps) {
   const router = useRouter();
   const [examContext, setExamContext] = useState(initialContext);
@@ -71,7 +77,9 @@ export function AssessmentExamContextSection({
   }, [examContext.examSessionId, examContext.participantStatus, studentId]);
 
   function handleJoin() {
-    if (!examContext.examSessionId) {
+    const examSessionId = examContext.examSessionId;
+
+    if (!examSessionId) {
       return;
     }
 
@@ -80,7 +88,7 @@ export function AssessmentExamContextSection({
     startJoinTransition(() => {
       void (async () => {
         try {
-          await joinExamSession(examContext.examSessionId as string, studentId);
+          await joinExamSession(examSessionId, studentId);
           const refreshedContext = await getAssessmentExamContext(assessmentId, studentId);
           setExamContext(refreshedContext);
         } catch (error) {
@@ -93,7 +101,9 @@ export function AssessmentExamContextSection({
   }
 
   function handleRegisterDevice() {
-    if (!examContext.examSessionId) {
+    const examSessionId = examContext.examSessionId;
+
+    if (!examSessionId) {
       return;
     }
 
@@ -102,7 +112,7 @@ export function AssessmentExamContextSection({
     startDeviceTransition(() => {
       void (async () => {
         try {
-          const nextDeviceState = await createOrGetStudentDevice(examContext.examSessionId as string, studentId);
+          const nextDeviceState = await createOrGetStudentDevice(examSessionId, studentId);
           setDeviceState(nextDeviceState);
           const refreshedContext = await getAssessmentExamContext(assessmentId, studentId);
           setExamContext(refreshedContext);
@@ -132,6 +142,14 @@ export function AssessmentExamContextSection({
     });
   }
 
+  function handleOpenLatestSubmission() {
+    if (!latestSubmission) {
+      return;
+    }
+
+    router.push(`/student/submissions/${latestSubmission.id}`);
+  }
+
   return (
     <>
       <ExamContextPanel context={examContext} />
@@ -149,9 +167,11 @@ export function AssessmentExamContextSection({
       <SubmissionPanel
         assessmentId={assessmentId}
         examContext={examContext}
+        latestSubmission={latestSubmission}
         pending={isSubmissionPending}
         errorMessage={submissionErrorMessage}
         onOpenSubmission={handleOpenSubmission}
+        onOpenLatestSubmission={handleOpenLatestSubmission}
       />
     </>
   );

@@ -6,7 +6,7 @@ type JoinExamButtonProps = {
 };
 
 export function JoinExamButton({
-  disabled = true,
+  disabled = false,
   pending = false,
   errorMessage = null,
   onClick

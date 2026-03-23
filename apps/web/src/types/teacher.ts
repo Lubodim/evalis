@@ -1,4 +1,6 @@
 export type TeacherExamSessionStatus = "WAITING" | "ACTIVE" | "ENDED";
+export type TeacherExamSessionParticipantStatus = "JOINED" | "APPROVED";
+export type TeacherExamSessionDeviceStatus = "PENDING" | "APPROVED";
 
 export interface TeacherExamSessionAssessmentSummary {
   id: string;
@@ -18,7 +20,7 @@ export interface TeacherExamSessionAssessmentSummary {
 
 export interface TeacherExamSessionParticipantSummary {
   id: string;
-  status: string;
+  status: TeacherExamSessionParticipantStatus;
   studentProfileId: string;
   joinedAt: string;
   approvedAt: string | null;
@@ -33,4 +35,32 @@ export interface TeacherExamSessionDetail {
   updatedAt: string;
   assessment: TeacherExamSessionAssessmentSummary;
   participants: TeacherExamSessionParticipantSummary[];
+}
+
+export interface TeacherExamSessionDeviceSummary {
+  id: string;
+  status: TeacherExamSessionDeviceStatus;
+  deviceCode: string;
+  joinedAt: string;
+  approvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeacherExamSessionDevicesParticipantSummary {
+  id: string;
+  status: TeacherExamSessionParticipantStatus;
+  joinedAt: string;
+  approvedAt: string | null;
+  studentProfileId: string;
+  device: TeacherExamSessionDeviceSummary | null;
+}
+
+export interface TeacherExamSessionDevicesDetail {
+  id: string;
+  status: TeacherExamSessionStatus;
+  startsAt: string | null;
+  endedAt: string | null;
+  assessment: TeacherExamSessionAssessmentSummary;
+  participants: TeacherExamSessionDevicesParticipantSummary[];
 }
