@@ -53,20 +53,46 @@ export default async function StudentSubmissionPage({ params }: StudentSubmissio
 
   try {
     const submission = await getStudentSubmission(submissionId, studentId);
+    const questionCount = submission.assessment.questions?.length ?? 0;
 
     return (
       <main className="page">
-        <section className="card">
-          <p className="eyebrow">Предаване</p>
-          <h1>{submission.assessment.title ?? `Предаване ${submission.id}`}</h1>
-          <p>Предаване ID: {submission.id}</p>
-          <p>Статус: {formatStatus(submission.status)}</p>
-          <p>Предадено на: {formatDate(submission.submittedAt)}</p>
-          <p>Оценяване: {submission.assessment.title ?? "Няма заглавие"}</p>
-          <p>Тип: {formatAssessmentType(submission.assessment.type)}</p>
-          <p>Клас: {submission.assessment.schoolClass.name}</p>
-        </section>
-        <AnswerForm submission={submission} studentId={studentId} />
+        <div className="content-stack">
+          <section className="card workspace-header-card">
+            <div className="workspace-header-row">
+              <div>
+                <p className="eyebrow">Предаване</p>
+                <h1>{submission.assessment.title ?? `Предаване ${submission.id}`}</h1>
+              </div>
+              <span className="status-pill">{formatStatus(submission.status)}</span>
+            </div>
+            <p className="workspace-intro">
+              Това е текущото ти работно пространство за оценяването. Попълни наличните въпроси и
+              предай отговорите, когато си готов.
+            </p>
+            <div className="meta-grid">
+              <p>
+                <strong>Предаване ID:</strong> {submission.id}
+              </p>
+              <p>
+                <strong>Предадено на:</strong> {formatDate(submission.submittedAt)}
+              </p>
+              <p>
+                <strong>Тип:</strong> {formatAssessmentType(submission.assessment.type)}
+              </p>
+              <p>
+                <strong>Клас:</strong> {submission.assessment.schoolClass.name}
+              </p>
+              <p>
+                <strong>Брой въпроси:</strong> {questionCount}
+              </p>
+              <p>
+                <strong>Общо точки:</strong> {submission.assessment.totalPoints}
+              </p>
+            </div>
+          </section>
+          <AnswerForm submission={submission} studentId={studentId} />
+        </div>
       </main>
     );
   } catch (error) {
@@ -75,13 +101,15 @@ export default async function StudentSubmissionPage({ params }: StudentSubmissio
 
     return (
       <main className="page">
-        <section className="card">
-          <p className="eyebrow">Предаване</p>
-          <h1>Предаване {submissionId}</h1>
-          <p>Страницата не успя да зареди това предаване.</p>
-          <p>{message}</p>
-        </section>
-        <AnswerForm />
+        <div className="content-stack">
+          <section className="card workspace-header-card">
+            <p className="eyebrow">Предаване</p>
+            <h1>Предаване {submissionId}</h1>
+            <p className="workspace-intro">Страницата не успя да зареди това предаване.</p>
+            <p>{message}</p>
+          </section>
+          <AnswerForm />
+        </div>
       </main>
     );
   }

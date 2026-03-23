@@ -42,9 +42,9 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
 
   if (!submission) {
     return (
-      <section className="card">
+      <section className="card workspace-section-card">
         <p className="eyebrow">Отговори</p>
-        <h2>Съдържание на предаването</h2>
+        <h2>Работно съдържание</h2>
         <p>Данните за предаването не са налични.</p>
       </section>
     );
@@ -98,24 +98,39 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
   }
 
   return (
-    <section className="card">
-      <p className="eyebrow">Отговори</p>
-      <h2>Съдържание на предаването</h2>
-      <p>
-        Тук можеш да попълниш кратките текстови въпроси. Неподдържаните типове засега се показват само за преглед.
+    <section className="card workspace-section-card">
+      <div className="workspace-header-row">
+        <div>
+          <p className="eyebrow">Отговори</p>
+          <h2>Работно съдържание</h2>
+        </div>
+        <span className="status-pill">{formatSubmissionStatus(currentSubmission.status)}</span>
+      </div>
+
+      <p className="workspace-intro">
+        Попълни въпросите по-долу и предай отговорите си, когато си готов. Неподдържаните типове се
+        показват само за преглед.
       </p>
-      <form onSubmit={handleSubmit}>
-        {questions.length === 0 ? <p>Все още няма налични въпроси за това предаване.</p> : null}
+
+      <form onSubmit={handleSubmit} className="workspace-form">
+        {questions.length === 0 ? (
+          <div className="workspace-note">
+            <p>Все още няма налични въпроси за това предаване.</p>
+          </div>
+        ) : null}
+
         {supportedQuestions.map((question) => (
-          <article key={question.id} className="card">
-            <p className="eyebrow">Въпрос {question.orderIndex}</p>
+          <article key={question.id} className="workspace-question-card">
+            <div className="workspace-question-header">
+              <p className="eyebrow">Въпрос {question.orderIndex}</p>
+              <span className="question-points">{question.maxPoints} т.</span>
+            </div>
             <h3>{question.prompt}</h3>
-            <p>Тип: {question.type}</p>
-            <p>Максимум точки: {question.maxPoints}</p>
-            <label>
+            <p className="question-type">Тип: {question.type}</p>
+            <label className="workspace-field">
               <span>Твоят отговор</span>
-              <input
-                type="text"
+              <textarea
+                rows={4}
                 value={answers[question.id] ?? ""}
                 disabled={!isEditable || isPending}
                 onChange={(event) => {
@@ -129,23 +144,43 @@ export function AnswerForm({ submission, studentId }: AnswerFormProps) {
             </label>
           </article>
         ))}
+
         {unsupportedQuestions.map((question) => (
-          <article key={question.id} className="card">
-            <p className="eyebrow">Въпрос {question.orderIndex}</p>
+          <article key={question.id} className="workspace-question-card">
+            <div className="workspace-question-header">
+              <p className="eyebrow">Въпрос {question.orderIndex}</p>
+              <span className="question-points">{question.maxPoints} т.</span>
+            </div>
             <h3>{question.prompt}</h3>
-            <p>Тип: {question.type}</p>
-            <p>Този тип въпрос все още не се редактира от интерфейса.</p>
+            <p className="question-type">Тип: {question.type}</p>
+            <div className="workspace-note">
+              <p>Този тип въпрос все още не се редактира от интерфейса.</p>
+            </div>
           </article>
         ))}
+
         {!isEditable ? (
-          <p>Това предаване е със статус „{formatSubmissionStatus(currentSubmission.status)}“ и не може да се редактира.</p>
+          <div className="workspace-note">
+            <p>
+              Това предаване е със статус „{formatSubmissionStatus(currentSubmission.status)}“ и е само за
+              преглед.
+            </p>
+          </div>
         ) : null}
+
+        {errorMessage ? (
+          <div className="workspace-note workspace-note-error">
+            <p>{errorMessage}</p>
+          </div>
+        ) : null}
+
         {supportedQuestions.length > 0 && isEditable ? (
-          <button type="submit" disabled={isPending}>
-            {isPending ? "Изпращане..." : "Предай отговорите"}
-          </button>
+          <div className="workspace-actions">
+            <button type="submit" disabled={isPending}>
+              {isPending ? "Изпращане..." : "Предай отговорите"}
+            </button>
+          </div>
         ) : null}
-        {errorMessage ? <p>{errorMessage}</p> : null}
       </form>
     </section>
   );
