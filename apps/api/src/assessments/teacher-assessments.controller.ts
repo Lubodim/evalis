@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Body,
   Controller,
+  Get,
   Headers,
   Param,
   Patch
@@ -18,6 +19,16 @@ type TeacherRequestUser = {
 @Controller("teacher")
 export class TeacherAssessmentsController {
   constructor(private readonly assessmentsService: AssessmentsService) {}
+
+  @Get("assessments/:assessmentId/review-settings")
+  async getReviewSettings(
+    @Param("assessmentId") assessmentId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    return this.assessmentsService.getReviewSettings(assessmentId, currentUser.userId);
+  }
 
   @Patch("assessments/:assessmentId/review-settings")
   async updateReviewSettings(

@@ -2,6 +2,11 @@ export type TeacherExamSessionStatus = "WAITING" | "ACTIVE" | "ENDED";
 export type TeacherExamSessionParticipantStatus = "JOINED" | "APPROVED";
 export type TeacherExamSessionDeviceStatus = "PENDING" | "APPROVED";
 export type TeacherSubmissionStatus = "DRAFT" | "SUBMITTED" | "GRADED";
+export type TeacherAssessmentReviewMode =
+  | "NONE"
+  | "SCORE_ONLY"
+  | "ANSWERS_NO_EXPLANATIONS"
+  | "ANSWERS_WITH_EXPLANATIONS";
 
 export interface TeacherExamSessionAssessmentSummary {
   id: string;
@@ -64,6 +69,14 @@ export interface TeacherExamSessionDevicesDetail {
   endedAt: string | null;
   assessment: TeacherExamSessionAssessmentSummary;
   participants: TeacherExamSessionDevicesParticipantSummary[];
+}
+
+export interface TeacherAssessmentReviewSettings {
+  id: string;
+  title: string | null;
+  reviewMode: TeacherAssessmentReviewMode;
+  reviewAvailableAt: string | null;
+  updatedAt: string;
 }
 
 export interface TeacherSubmissionStudentUser {

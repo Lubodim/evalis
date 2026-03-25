@@ -1,5 +1,6 @@
 import { apiRequest } from "./client";
 import type {
+  TeacherAssessmentReviewSettings,
   TeacherAssessmentSubmissionListItem,
   TeacherExamSessionDetail,
   TeacherExamSessionDevicesDetail,
@@ -30,6 +31,37 @@ export async function getCurrentTeacherExamSession(assessmentId: string, teacher
         ...TEACHER_HEADERS,
         "x-user-id": teacherId
       }
+    }
+  );
+}
+
+export async function getTeacherAssessmentReviewSettings(assessmentId: string, teacherId: string) {
+  return apiRequest<TeacherAssessmentReviewSettings>(
+    `/teacher/assessments/${assessmentId}/review-settings`,
+    {
+      method: "GET",
+      headers: {
+        ...TEACHER_HEADERS,
+        "x-user-id": teacherId
+      }
+    }
+  );
+}
+
+export async function updateTeacherAssessmentReviewSettings(
+  assessmentId: string,
+  teacherId: string,
+  reviewMode: TeacherAssessmentReviewSettings["reviewMode"]
+) {
+  return apiRequest<TeacherAssessmentReviewSettings>(
+    `/teacher/assessments/${assessmentId}/review-settings`,
+    {
+      method: "PATCH",
+      headers: {
+        ...TEACHER_HEADERS,
+        "x-user-id": teacherId
+      },
+      body: JSON.stringify({ reviewMode })
     }
   );
 }

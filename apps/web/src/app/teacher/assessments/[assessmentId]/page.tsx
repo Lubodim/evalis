@@ -1,5 +1,6 @@
 import { TeacherExamSessionControl } from "../../../../components/teacher/TeacherExamSessionControl";
 import { TeacherAssessmentSubmissionsSection } from "../../../../components/teacher/TeacherAssessmentSubmissionsSection";
+import { TeacherReviewVisibilityControl } from "../../../../components/teacher/TeacherReviewVisibilityControl";
 
 const DEFAULT_TEACHER_ID = "cmn0n00et0002uquoq5xo2q09";
 const DEFAULT_STUDENT_PROFILE_ID = "cmn0n00f20004uquot7fm6fbz";
@@ -35,6 +36,7 @@ export default async function TeacherAssessmentPage({ params }: TeacherAssessmen
           <h1>Assessment {assessmentId}</h1>
           <p>Use this page to control the exam session lifecycle and review submitted work for a single assessment.</p>
         </section>
+        <TeacherReviewVisibilityControl assessmentId={assessmentId} teacherId={teacherId} />
         <TeacherExamSessionControl
           assessmentId={assessmentId}
           teacherId={teacherId}

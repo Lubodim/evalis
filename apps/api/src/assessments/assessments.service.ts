@@ -98,6 +98,23 @@ export class AssessmentsService {
     });
   }
 
+  async getReviewSettings(assessmentId: string, teacherId: string) {
+    await this.ensureTeacherAssessmentExists(assessmentId, teacherId);
+
+    return this.prisma.assessment.findUnique({
+      where: {
+        id: assessmentId
+      },
+      select: {
+        id: true,
+        title: true,
+        reviewMode: true,
+        reviewAvailableAt: true,
+        updatedAt: true
+      }
+    });
+  }
+
   async updateReviewSettings(
     assessmentId: string,
     teacherId: string,
