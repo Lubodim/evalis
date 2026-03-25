@@ -165,16 +165,19 @@ model Submission {
   id               String           @id @default(cuid())
   assessmentId     String
   studentProfileId String
+  examSessionId    String?
   status           SubmissionStatus @default(DRAFT)
   submittedAt      DateTime?
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
   assessment       Assessment       @relation(fields: [assessmentId], references: [id])
   studentProfile   StudentProfile   @relation(fields: [studentProfileId], references: [id])
+  examSession      ExamSession?     @relation(fields: [examSessionId], references: [id])
   answers          SubmissionAnswer[]
   result           Result?
 
   @@index([assessmentId, studentProfileId])
+  @@index([assessmentId, studentProfileId, examSessionId, status])
 }
 
 model SubmissionAnswer {
@@ -222,6 +225,7 @@ model ExamSession {
   assessment   Assessment               @relation(fields: [assessmentId], references: [id])
   teacher      User                     @relation("ExamSessionTeacher", fields: [teacherId], references: [id])
   participants ExamSessionParticipant[]
+  submissions  Submission[]
 }
 
 model ExamSessionParticipant {

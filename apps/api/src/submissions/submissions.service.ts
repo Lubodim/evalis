@@ -315,12 +315,13 @@ export class SubmissionsService {
   async createForAssessment(assessmentId: string, studentIdentity: string) {
     const studentProfile = await this.getStudentProfile(studentIdentity);
     await this.ensureAssessmentIsAssigned(assessmentId, studentProfile.id);
-    await this.ensureStudentCanAccessActiveExamSession(assessmentId, studentProfile.id);
+    const activeExamSessionId = await this.ensureStudentCanAccessActiveExamSession(assessmentId, studentProfile.id);
 
     const existingDraftSubmission = await this.prisma.submission.findFirst({
       where: {
         assessmentId,
         studentProfileId: studentProfile.id,
+        examSessionId: activeExamSessionId,
         status: SubmissionStatus.DRAFT
       },
       orderBy: {
@@ -333,10 +334,35 @@ export class SubmissionsService {
       return existingDraftSubmission;
     }
 
+    if (activeExamSessionId) {
+      const existingFinishedSubmission = await this.prisma.submission.findFirst({
+        where: {
+          assessmentId,
+          studentProfileId: studentProfile.id,
+          examSessionId: activeExamSessionId,
+          status: {
+            in: [SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED]
+          }
+        },
+        orderBy: [{ submittedAt: "desc" }, { updatedAt: "desc" }],
+        select: {
+          id: true,
+          status: true
+        }
+      });
+
+      if (existingFinishedSubmission) {
+        throw new BadRequestException(
+          `Assessment ${assessmentId} already has a finished submission attempt for this student in the current exam session and cannot create a new editable draft.`
+        );
+      }
+    }
+
     return this.prisma.submission.create({
       data: {
         assessmentId,
-        studentProfileId: studentProfile.id
+        studentProfileId: studentProfile.id,
+        examSessionId: activeExamSessionId
       },
       select: submissionDetailSelect
     });
@@ -745,7 +771,7 @@ export class SubmissionsService {
     });
 
     if (!activeExamSession) {
-      return;
+      return null;
     }
 
     const participant = activeExamSession.participants[0];
@@ -773,6 +799,8 @@ export class SubmissionsService {
         `Your exam device for assessment ${assessmentId} is not approved yet.`
       );
     }
+
+    return activeExamSession.id;
   }
 
   private async getStudentProfile(studentIdentity: string) {
