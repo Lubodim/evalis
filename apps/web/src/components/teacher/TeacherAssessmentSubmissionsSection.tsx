@@ -103,6 +103,24 @@ function buildGradeDraft(submission: TeacherSubmissionDetail): GradeDraft {
   }, {});
 }
 
+function hasGradeDraftChanges(submission: TeacherSubmissionDetail | null, draft: GradeDraft) {
+  if (!submission) {
+    return false;
+  }
+
+  const savedDraft = buildGradeDraft(submission);
+
+  return submission.assessment.questions.some((question) => {
+    const savedRow = savedDraft[question.id] ?? { pointsAwarded: "", teacherFeedback: "" };
+    const currentRow = draft[question.id] ?? { pointsAwarded: "", teacherFeedback: "" };
+
+    return (
+      savedRow.pointsAwarded !== currentRow.pointsAwarded ||
+      savedRow.teacherFeedback !== currentRow.teacherFeedback
+    );
+  });
+}
+
 function formatAnswerValue(answer: TeacherSubmissionAnswerDetail | undefined) {
   if (!answer) {
     return "No submitted answer.";
@@ -318,7 +336,8 @@ export function TeacherAssessmentSubmissionsSection({
   }
 
   const canGrade = selectedSubmission?.status === "SUBMITTED";
-  const canFinalize = selectedSubmission?.status === "SUBMITTED";
+  const hasUnsavedGradingChanges = hasGradeDraftChanges(selectedSubmission, gradeDraft);
+  const canFinalize = selectedSubmission?.status === "SUBMITTED" && !hasUnsavedGradingChanges;
 
   return (
     <section className="card" style={{ maxWidth: "none" }}>
@@ -470,6 +489,9 @@ export function TeacherAssessmentSubmissionsSection({
               ) : null}
 
               {actionError ? <p>Error: {actionError}</p> : null}
+              {selectedSubmission.status === "SUBMITTED" && hasUnsavedGradingChanges ? (
+                <p>Save grading changes before finalizing the review.</p>
+              ) : null}
 
               <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
                 <button type="button" disabled={!canGrade || pendingAction !== null} onClick={() => void handleGrade()}>
