@@ -6,7 +6,9 @@ import {
   createOrGetStudentDevice,
   createOrReuseSubmission,
   getAssessmentExamContext,
+  getStudentAssessments,
   getStudentDevice,
+  getStudentSubmissionReview,
   joinExamSession
 } from "../../lib/api/student";
 import type {
@@ -17,7 +19,10 @@ import type {
 import { DevicePanel } from "./DevicePanel";
 import { ExamContextPanel } from "./ExamContextPanel";
 import { JoinExamButton } from "./JoinExamButton";
-import { SubmissionPanel } from "./SubmissionPanel";
+import {
+  getStudentAssessmentCtaDecision,
+  SubmissionPanel
+} from "./SubmissionPanel";
 
 type AssessmentExamContextSectionProps = {
   assessmentId: string;
@@ -34,6 +39,9 @@ export function AssessmentExamContextSection({
 }: AssessmentExamContextSectionProps) {
   const router = useRouter();
   const [examContext, setExamContext] = useState(initialContext);
+  const [latestSubmissionState, setLatestSubmissionState] = useState<StudentSubmissionSummary | null>(
+    latestSubmission
+  );
   const [joinErrorMessage, setJoinErrorMessage] = useState<string | null>(null);
   const [deviceState, setDeviceState] = useState<StudentExamDeviceState | null>(null);
   const [deviceErrorMessage, setDeviceErrorMessage] = useState<string | null>(null);
@@ -43,11 +51,9 @@ export function AssessmentExamContextSection({
   const [isDevicePending, startDeviceTransition] = useTransition();
   const [isSubmissionPending, startSubmissionTransition] = useTransition();
 
-  const shouldShowJoinButton =
-    examContext.hasExamSession &&
-    examContext.examSessionStatus === "WAITING" &&
-    examContext.participantStatus === null &&
-    examContext.examSessionId !== null;
+  useEffect(() => {
+    setLatestSubmissionState(latestSubmission);
+  }, [latestSubmission]);
 
   useEffect(() => {
     async function loadDeviceState(examSessionId: string) {
@@ -75,6 +81,37 @@ export function AssessmentExamContextSection({
 
     void loadDeviceState(examContext.examSessionId);
   }, [examContext.examSessionId, examContext.participantStatus, studentId]);
+
+  const ctaDecision = getStudentAssessmentCtaDecision({
+    examContext,
+    latestSubmission: latestSubmissionState,
+    activeSessionStartsAt: deviceState?.startsAt ?? null
+  });
+
+  async function refreshLatestSubmissionState() {
+    const assessments = await getStudentAssessments(studentId);
+    const currentAssessment = assessments.find((assessment) => assessment.id === assessmentId) ?? null;
+    const nextLatestSubmission = currentAssessment?.submissions?.[0] ?? null;
+    setLatestSubmissionState(nextLatestSubmission);
+    return nextLatestSubmission;
+  }
+
+  async function openHistoricalSubmission(submission: StudentSubmissionSummary) {
+    if (submission.status === "DRAFT") {
+      router.push(`/student/submissions/${submission.id}`);
+      return;
+    }
+
+    const review = await getStudentSubmissionReview(submission.id, studentId);
+    const hasVisibleReview = review.result !== null || review.answers.length > 0;
+
+    if (hasVisibleReview) {
+      router.push(`/student/submissions/${submission.id}/review`);
+      return;
+    }
+
+    setSubmissionErrorMessage("Прегледът за последното предаване все още не е достъпен.");
+  }
 
   function handleJoin() {
     const examSessionId = examContext.examSessionId;
@@ -131,7 +168,39 @@ export function AssessmentExamContextSection({
     startSubmissionTransition(() => {
       void (async () => {
         try {
+          const freshLatestSubmission = await refreshLatestSubmissionState();
+          const freshDecision = getStudentAssessmentCtaDecision({
+            examContext,
+            latestSubmission: freshLatestSubmission,
+            activeSessionStartsAt: deviceState?.startsAt ?? null
+          });
+
+          if (
+            (freshDecision.mode === "historical" || freshDecision.mode === "locked_current_attempt") &&
+            freshLatestSubmission
+          ) {
+            await openHistoricalSubmission(freshLatestSubmission);
+            return;
+          }
+
+          if (freshDecision.mode !== "work_active") {
+            setSubmissionErrorMessage("Предаването не може да бъде отворено в текущото състояние.");
+            return;
+          }
+
           const submission = await createOrReuseSubmission(assessmentId, studentId);
+
+          if (submission.status !== "DRAFT") {
+            await openHistoricalSubmission({
+              id: submission.id,
+              status: submission.status,
+              submittedAt: submission.submittedAt,
+              createdAt: submission.createdAt,
+              updatedAt: submission.updatedAt
+            });
+            return;
+          }
+
           router.push(`/student/submissions/${submission.id}`);
         } catch (error) {
           setSubmissionErrorMessage(
@@ -143,17 +212,31 @@ export function AssessmentExamContextSection({
   }
 
   function handleOpenLatestSubmission() {
-    if (!latestSubmission) {
+    const submission = latestSubmissionState;
+
+    if (!submission) {
       return;
     }
 
-    router.push(`/student/submissions/${latestSubmission.id}`);
+    setSubmissionErrorMessage(null);
+
+    startSubmissionTransition(() => {
+      void (async () => {
+        try {
+          await openHistoricalSubmission(submission);
+        } catch (error) {
+          setSubmissionErrorMessage(
+            error instanceof Error ? error.message : "Прегледът на последното предаване не може да бъде отворен."
+          );
+        }
+      })();
+    });
   }
 
   return (
     <>
       <ExamContextPanel context={examContext} />
-      {shouldShowJoinButton ? (
+      {ctaDecision.mode === "join_waiting" ? (
         <JoinExamButton onClick={handleJoin} pending={isJoinPending} errorMessage={joinErrorMessage} />
       ) : null}
       <DevicePanel
@@ -166,8 +249,9 @@ export function AssessmentExamContextSection({
       />
       <SubmissionPanel
         assessmentId={assessmentId}
+        mode={ctaDecision.mode}
         examContext={examContext}
-        latestSubmission={latestSubmission}
+        latestSubmission={latestSubmissionState}
         pending={isSubmissionPending}
         errorMessage={submissionErrorMessage}
         onOpenSubmission={handleOpenSubmission}

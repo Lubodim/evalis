@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { AnswerForm } from "../../../../components/student/AnswerForm";
 import { getStudentSubmission } from "../../../../lib/api/student";
 
@@ -53,6 +54,11 @@ export default async function StudentSubmissionPage({ params }: StudentSubmissio
 
   try {
     const submission = await getStudentSubmission(submissionId, studentId);
+
+    if (submission.status !== "DRAFT") {
+      redirect(`/student/submissions/${submissionId}/review`);
+    }
+
     const questionCount = submission.assessment.questions?.length ?? 0;
 
     return (

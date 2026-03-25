@@ -29,6 +29,8 @@ type GradeDraft = Record<
   }
 >;
 
+type GradeFieldErrors = Record<string, string | null>;
+
 type PendingAction = "grade" | "finalize" | null;
 
 function formatDate(value: string | null) {
@@ -90,7 +92,10 @@ function buildGradeDraft(submission: TeacherSubmissionDetail): GradeDraft {
     const answer = findAnswer(submission.answers, question);
 
     draft[question.id] = {
-      pointsAwarded: answer?.pointsAwarded !== null && answer?.pointsAwarded !== undefined ? String(answer.pointsAwarded) : "",
+      pointsAwarded:
+        answer?.pointsAwarded !== null && answer?.pointsAwarded !== undefined
+          ? String(answer.pointsAwarded)
+          : "",
       teacherFeedback: answer?.teacherFeedback ?? ""
     };
 
@@ -114,6 +119,34 @@ function formatAnswerValue(answer: TeacherSubmissionAnswerDetail | undefined) {
   return "No submitted answer.";
 }
 
+function validatePoints(question: TeacherSubmissionQuestion, rawValue: string) {
+  const trimmedValue = rawValue.trim();
+
+  if (!trimmedValue) {
+    return null;
+  }
+
+  const pointsAwarded = Number(trimmedValue);
+
+  if (!Number.isFinite(pointsAwarded)) {
+    return "Enter a valid number.";
+  }
+
+  if (!Number.isInteger(pointsAwarded)) {
+    return "Points must be a whole number.";
+  }
+
+  if (pointsAwarded < 0) {
+    return "Points cannot be negative.";
+  }
+
+  if (pointsAwarded > question.maxPoints) {
+    return `Points cannot exceed ${question.maxPoints}.`;
+  }
+
+  return null;
+}
+
 export function TeacherAssessmentSubmissionsSection({
   assessmentId,
   teacherId
@@ -128,6 +161,7 @@ export function TeacherAssessmentSubmissionsSection({
   const [actionError, setActionError] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [gradeDraft, setGradeDraft] = useState<GradeDraft>({});
+  const [gradeFieldErrors, setGradeFieldErrors] = useState<GradeFieldErrors>({});
 
   async function loadSubmissions(options?: { silent?: boolean }) {
     if (!options?.silent) {
@@ -158,9 +192,11 @@ export function TeacherAssessmentSubmissionsSection({
       const nextSubmission = await getTeacherSubmission(submissionId, teacherId);
       setSelectedSubmission(nextSubmission);
       setGradeDraft(buildGradeDraft(nextSubmission));
+      setGradeFieldErrors({});
     } catch (error) {
       setSelectedSubmission(null);
       setGradeDraft({});
+      setGradeFieldErrors({});
       setDetailError(error instanceof Error ? error.message : "The submission detail could not be loaded.");
     } finally {
       setIsDetailLoading(false);
@@ -173,10 +209,13 @@ export function TeacherAssessmentSubmissionsSection({
     setDetailError(null);
     setActionError(null);
     setGradeDraft({});
+    setGradeFieldErrors({});
     void loadSubmissions();
   }, [assessmentId, teacherId]);
 
   function updateGradeDraft(questionId: string, field: "pointsAwarded" | "teacherFeedback", value: string) {
+    setActionError(null);
+
     setGradeDraft((currentDraft) => ({
       ...currentDraft,
       [questionId]: {
@@ -185,6 +224,16 @@ export function TeacherAssessmentSubmissionsSection({
         [field]: value
       }
     }));
+
+    if (field === "pointsAwarded") {
+      const question = selectedSubmission?.assessment.questions.find((currentQuestion) => currentQuestion.id === questionId);
+      const nextError = question ? validatePoints(question, value) : null;
+
+      setGradeFieldErrors((currentErrors) => ({
+        ...currentErrors,
+        [questionId]: nextError
+      }));
+    }
   }
 
   async function refreshAfterMutation(submissionId: string) {
@@ -197,27 +246,36 @@ export function TeacherAssessmentSubmissionsSection({
     }
 
     const answers: TeacherGradeSubmissionAnswerInput[] = [];
+    const nextFieldErrors: GradeFieldErrors = {};
 
     for (const question of selectedSubmission.assessment.questions) {
       const nextDraft = gradeDraft[question.id];
-      const rawPoints = nextDraft?.pointsAwarded?.trim() ?? "";
+      const rawPoints = nextDraft?.pointsAwarded ?? "";
+      const pointsError = validatePoints(question, rawPoints);
 
-      if (!rawPoints) {
+      if (pointsError) {
+        nextFieldErrors[question.id] = pointsError;
         continue;
       }
 
-      const pointsAwarded = Number(rawPoints);
+      const trimmedPoints = rawPoints.trim();
 
-      if (!Number.isFinite(pointsAwarded) || pointsAwarded < 0) {
-        setActionError(`Points for question ${question.orderIndex + 1} must be a non-negative number.`);
-        return;
+      if (!trimmedPoints) {
+        continue;
       }
 
       answers.push({
         questionId: question.id,
-        pointsAwarded,
+        pointsAwarded: Number(trimmedPoints),
         teacherFeedback: nextDraft?.teacherFeedback?.trim() ? nextDraft.teacherFeedback.trim() : null
       });
+    }
+
+    setGradeFieldErrors(nextFieldErrors);
+
+    if (Object.values(nextFieldErrors).some(Boolean)) {
+      setActionError("Fix the highlighted grading values before saving.");
+      return;
     }
 
     if (answers.length === 0) {
@@ -239,6 +297,11 @@ export function TeacherAssessmentSubmissionsSection({
 
   async function handleFinalize() {
     if (!selectedSubmission || pendingAction) {
+      return;
+    }
+
+    if (Object.values(gradeFieldErrors).some(Boolean)) {
+      setActionError("Fix the highlighted grading values before finalizing.");
       return;
     }
 
@@ -337,6 +400,7 @@ export function TeacherAssessmentSubmissionsSection({
                 {selectedSubmission.assessment.questions.map((question) => {
                   const answer = findAnswer(selectedSubmission.answers, question);
                   const nextDraft = gradeDraft[question.id] ?? { pointsAwarded: "", teacherFeedback: "" };
+                  const fieldError = gradeFieldErrors[question.id];
 
                   return (
                     <article
@@ -344,10 +408,10 @@ export function TeacherAssessmentSubmissionsSection({
                       style={{
                         display: "grid",
                         gap: "12px",
-                        border: "1px solid #d9e2f0",
+                        border: fieldError ? "1px solid #f4c5c5" : "1px solid #d9e2f0",
                         borderRadius: "14px",
                         padding: "18px",
-                        background: "#f9fbff"
+                        background: fieldError ? "#fff7f7" : "#f9fbff"
                       }}
                     >
                       <div style={{ display: "flex", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
@@ -359,27 +423,43 @@ export function TeacherAssessmentSubmissionsSection({
                       <p>Type: {question.type}</p>
                       <p>Answer: {formatAnswerValue(answer)}</p>
 
-                      <label style={{ display: "grid", gap: "8px" }}>
-                        <span>Points awarded</span>
-                        <input
-                          type="number"
-                          min="0"
-                          max={String(question.maxPoints)}
-                          step="1"
-                          value={nextDraft.pointsAwarded}
-                          disabled={!canGrade || pendingAction !== null}
-                          onChange={(event) => updateGradeDraft(question.id, "pointsAwarded", event.target.value)}
-                        />
-                      </label>
+                      {canGrade ? (
+                        <>
+                          <label style={{ display: "grid", gap: "8px" }}>
+                            <span>Points awarded</span>
+                            <input
+                              type="number"
+                              min="0"
+                              max={String(question.maxPoints)}
+                              step="1"
+                              value={nextDraft.pointsAwarded}
+                              disabled={pendingAction !== null}
+                              onChange={(event) => updateGradeDraft(question.id, "pointsAwarded", event.target.value)}
+                            />
+                          </label>
 
-                      <label style={{ display: "grid", gap: "8px" }}>
-                        <span>Teacher feedback</span>
-                        <textarea
-                          value={nextDraft.teacherFeedback}
-                          disabled={!canGrade || pendingAction !== null}
-                          onChange={(event) => updateGradeDraft(question.id, "teacherFeedback", event.target.value)}
-                        />
-                      </label>
+                          {fieldError ? <p style={{ color: "#9d1f1f" }}>{fieldError}</p> : null}
+
+                          <label style={{ display: "grid", gap: "8px" }}>
+                            <span>Teacher feedback</span>
+                            <textarea
+                              value={nextDraft.teacherFeedback}
+                              disabled={pendingAction !== null}
+                              onChange={(event) => updateGradeDraft(question.id, "teacherFeedback", event.target.value)}
+                            />
+                          </label>
+                        </>
+                      ) : (
+                        <>
+                          <p>
+                            Awarded points: {answer?.pointsAwarded ?? "Not graded"}
+                            {answer?.pointsAwarded !== null && answer?.pointsAwarded !== undefined
+                              ? ` / ${question.maxPoints}`
+                              : ""}
+                          </p>
+                          <p>Teacher feedback: {answer?.teacherFeedback?.trim() ? answer.teacherFeedback : "No feedback saved."}</p>
+                        </>
+                      )}
                     </article>
                   );
                 })}
