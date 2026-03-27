@@ -136,39 +136,42 @@ model Subject {
 }
 
 model TeachingAssignment {
-  id            String      @id @default(cuid())
+  id            String       @id @default(cuid())
   schoolClassId String
   subjectId     String
   teacherUserId String
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  schoolClass   SchoolClass @relation(fields: [schoolClassId], references: [id])
-  subject       Subject     @relation(fields: [subjectId], references: [id])
-  teacher       User        @relation("TeachingAssignmentTeacher", fields: [teacherUserId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  schoolClass   SchoolClass  @relation(fields: [schoolClassId], references: [id])
+  subject       Subject      @relation(fields: [subjectId], references: [id])
+  teacher       User         @relation("TeachingAssignmentTeacher", fields: [teacherUserId], references: [id])
+  assessments   Assessment[]
 
   @@unique([schoolClassId, subjectId, teacherUserId])
 }
 
 model Assessment {
-  id                String               @id @default(cuid())
-  schoolClassId     String
-  teacherId         String
-  title             String
-  description       String?
-  type              AssessmentType
-  totalPoints       Int
-  publishedAt       DateTime?
-  dueAt             DateTime?
-  reviewMode        AssessmentReviewMode @default(NONE)
-  reviewAvailableAt DateTime?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
-  schoolClass       SchoolClass          @relation(fields: [schoolClassId], references: [id])
-  teacher           User                 @relation("AssessmentTeacher", fields: [teacherId], references: [id])
-  questions         Question[]
-  submissions       Submission[]
-  results           Result[]
-  examSessions      ExamSession[]
+  id                   String               @id @default(cuid())
+  schoolClassId        String
+  teacherId            String
+  teachingAssignmentId String?
+  title                String
+  description          String?
+  type                 AssessmentType
+  totalPoints          Int
+  publishedAt          DateTime?
+  dueAt                DateTime?
+  reviewMode           AssessmentReviewMode @default(NONE)
+  reviewAvailableAt    DateTime?
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  schoolClass          SchoolClass          @relation(fields: [schoolClassId], references: [id])
+  teacher              User                 @relation("AssessmentTeacher", fields: [teacherId], references: [id])
+  teachingAssignment   TeachingAssignment?  @relation(fields: [teachingAssignmentId], references: [id])
+  questions            Question[]
+  submissions          Submission[]
+  results              Result[]
+  examSessions         ExamSession[]
 }
 
 model Question {

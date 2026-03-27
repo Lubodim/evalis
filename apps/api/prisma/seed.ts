@@ -156,6 +156,7 @@ async function main() {
     update: {
       schoolClassId: schoolClass.id,
       teacherId: teacher.id,
+      teachingAssignmentId: teachingAssignment.id,
       title: "Fractions Quiz 1",
       description: "A simple sample assessment for the Evalis MVP",
       type: AssessmentType.QUIZ,
@@ -167,6 +168,7 @@ async function main() {
       id: "seed-assessment",
       schoolClassId: schoolClass.id,
       teacherId: teacher.id,
+      teachingAssignmentId: teachingAssignment.id,
       title: "Fractions Quiz 1",
       description: "A simple sample assessment for the Evalis MVP",
       type: AssessmentType.QUIZ,
@@ -222,4 +224,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
