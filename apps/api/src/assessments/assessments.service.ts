@@ -47,7 +47,7 @@ export class AssessmentsService {
   }
 
   async createForClass(classId: string, teacherId: string, body: CreateAssessmentDto) {
-    await this.ensureTeacherClassExists(classId, teacherId);
+    const schoolClass = await this.ensureTeacherClassExists(classId, teacherId);
 
     const title = body.title?.trim();
 
@@ -65,11 +65,17 @@ export class AssessmentsService {
 
     const dueAt = this.parseOptionalDate(body.dueAt, "dueAt");
     const publishedAt = this.parseOptionalDate(body.publishedAt, "publishedAt");
+    const teachingAssignmentId = await this.resolveTeachingAssignmentId(
+      classId,
+      teacherId,
+      schoolClass.subject
+    );
 
     return this.prisma.assessment.create({
       data: {
         schoolClassId: classId,
         teacherId,
+        teachingAssignmentId,
         title,
         description: body.description?.trim() || null,
         type: body.type,
@@ -160,20 +166,35 @@ export class AssessmentsService {
       },
       select: {
         id: true,
-        teacherId: true
+        teacherId: true,
+        subject: true
       }
     });
 
     if (!schoolClass || schoolClass.teacherId !== teacherId) {
       throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
     }
+
+    return schoolClass;
   }
 
   private async ensureTeacherAssessmentExists(assessmentId: string, teacherId: string) {
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: assessmentId,
-        teacherId
+        OR: [
+          {
+            teachingAssignment: {
+              is: {
+                teacherUserId: teacherId
+              }
+            }
+          },
+          {
+            teachingAssignmentId: null,
+            teacherId
+          }
+        ]
       },
       select: {
         id: true
@@ -183,6 +204,31 @@ export class AssessmentsService {
     if (!assessment) {
       throw new NotFoundException(`Assessment ${assessmentId} was not found for this teacher.`);
     }
+  }
+
+  private async resolveTeachingAssignmentId(
+    classId: string,
+    teacherId: string,
+    subjectName: string
+  ) {
+    const teachingAssignment = await this.prisma.teachingAssignment.findFirst({
+      where: {
+        schoolClassId: classId,
+        teacherUserId: teacherId,
+        subject: {
+          name: subjectName
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!teachingAssignment) {
+      throw new NotFoundException(`Teaching assignment for class ${classId} was not found for this teacher.`);
+    }
+
+    return teachingAssignment.id;
   }
 
   private parseOptionalDate(value: string | undefined, fieldName: string) {
