@@ -598,7 +598,19 @@ export class ExamSessionsService {
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: assessmentId,
-        teacherId
+        OR: [
+          {
+            teachingAssignment: {
+              is: {
+                teacherUserId: teacherId
+              }
+            }
+          },
+          {
+            teachingAssignmentId: null,
+            teacherId
+          }
+        ]
       },
       select: {
         id: true
