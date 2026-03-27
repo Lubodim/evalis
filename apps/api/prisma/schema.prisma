@@ -57,20 +57,21 @@ enum SubmissionStatus {
 }
 
 model User {
-  id                 String              @id @default(cuid())
-  email              String              @unique
-  passwordHash       String
-  firstName          String
-  lastName           String
-  role               UserRole
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  studentProfile     StudentProfile?
-  parentStudentLinks ParentStudentLink[] @relation("ParentLinks")
-  taughtClasses      SchoolClass[]       @relation("ClassTeacher")
-  createdAssessments Assessment[]        @relation("AssessmentTeacher")
-  examSessions       ExamSession[]       @relation("ExamSessionTeacher")
+  id                  String               @id @default(cuid())
+  email               String               @unique
+  passwordHash        String
+  firstName           String
+  lastName            String
+  role                UserRole
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  studentProfile      StudentProfile?
+  parentStudentLinks  ParentStudentLink[]  @relation("ParentLinks")
+  taughtClasses       SchoolClass[]        @relation("ClassTeacher")
+  teachingAssignments TeachingAssignment[] @relation("TeachingAssignmentTeacher")
+  createdAssessments  Assessment[]         @relation("AssessmentTeacher")
+  examSessions        ExamSession[]        @relation("ExamSessionTeacher")
 }
 
 model StudentProfile {
@@ -101,17 +102,18 @@ model ParentStudentLink {
 }
 
 model SchoolClass {
-  id          String       @id @default(cuid())
-  name        String
-  subject     String
-  schoolYear  String
-  teacherId   String
-  description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  teacher     User         @relation("ClassTeacher", fields: [teacherId], references: [id])
-  enrollments Enrollment[]
-  assessments Assessment[]
+  id                  String               @id @default(cuid())
+  name                String
+  subject             String
+  schoolYear          String
+  teacherId           String
+  description         String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  teacher             User                 @relation("ClassTeacher", fields: [teacherId], references: [id])
+  enrollments         Enrollment[]
+  assessments         Assessment[]
+  teachingAssignments TeachingAssignment[]
 }
 
 model Enrollment {
@@ -123,6 +125,28 @@ model Enrollment {
   studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
 
   @@unique([schoolClassId, studentProfileId])
+}
+
+model Subject {
+  id                  String               @id @default(cuid())
+  name                String               @unique
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  teachingAssignments TeachingAssignment[]
+}
+
+model TeachingAssignment {
+  id            String      @id @default(cuid())
+  schoolClassId String
+  subjectId     String
+  teacherUserId String
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  schoolClass   SchoolClass @relation(fields: [schoolClassId], references: [id])
+  subject       Subject     @relation(fields: [subjectId], references: [id])
+  teacher       User        @relation("TeachingAssignmentTeacher", fields: [teacherUserId], references: [id])
+
+  @@unique([schoolClassId, subjectId, teacherUserId])
 }
 
 model Assessment {
@@ -162,17 +186,17 @@ model Question {
 }
 
 model Submission {
-  id               String           @id @default(cuid())
+  id               String             @id @default(cuid())
   assessmentId     String
   studentProfileId String
   examSessionId    String?
-  status           SubmissionStatus @default(DRAFT)
+  status           SubmissionStatus   @default(DRAFT)
   submittedAt      DateTime?
-  createdAt        DateTime         @default(now())
-  updatedAt        DateTime         @updatedAt
-  assessment       Assessment       @relation(fields: [assessmentId], references: [id])
-  studentProfile   StudentProfile   @relation(fields: [studentProfileId], references: [id])
-  examSession      ExamSession?     @relation(fields: [examSessionId], references: [id])
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  assessment       Assessment         @relation(fields: [assessmentId], references: [id])
+  studentProfile   StudentProfile     @relation(fields: [studentProfileId], references: [id])
+  examSession      ExamSession?       @relation(fields: [examSessionId], references: [id])
   answers          SubmissionAnswer[]
   result           Result?
 
@@ -181,17 +205,17 @@ model Submission {
 }
 
 model SubmissionAnswer {
-  id              String      @id @default(cuid())
+  id              String     @id @default(cuid())
   submissionId    String
   questionId      String
   answerText      String?
   selectedOption  String?
   pointsAwarded   Int?
   teacherFeedback String?
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
-  submission      Submission  @relation(fields: [submissionId], references: [id])
-  question        Question    @relation(fields: [questionId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  submission      Submission @relation(fields: [submissionId], references: [id])
+  question        Question   @relation(fields: [questionId], references: [id])
 
   @@unique([submissionId, questionId])
 }

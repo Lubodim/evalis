@@ -1,18 +1,27 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   ForbiddenException,
   Get,
   Headers,
   NotFoundException,
-  Param
+  Param,
+  Patch,
+  Post
 } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { ClassesService } from "./classes.service";
+import { CreateClassDto } from "./dto/create-class.dto";
+import { UpdateClassDto } from "./dto/update-class.dto";
 
 type RequestUser = {
   role: UserRole;
   userId: string | null;
+};
+
+type AdminWriteUser = {
+  role: Extract<UserRole, "SCHOOL_ADMIN" | "SUPER_ADMIN">;
 };
 
 @Controller("classes")
@@ -44,6 +53,25 @@ export class ClassesController {
     return schoolClass;
   }
 
+  @Post()
+  async create(
+    @Body() body: CreateClassDto,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.create(body);
+  }
+
+  @Patch(":id")
+  async update(
+    @Param("id") id: string,
+    @Body() body: UpdateClassDto,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.update(id, body);
+  }
+
   private getCurrentUser(roleHeader?: string, userIdHeader?: string): RequestUser {
     if (!roleHeader) {
       throw new BadRequestException("Missing x-user-role header.");
@@ -67,6 +95,26 @@ export class ClassesController {
     return {
       role: normalizedRole,
       userId: normalizedUserId
+    };
+  }
+
+  private getAdminWriteUser(roleHeader?: string): AdminWriteUser {
+    if (!roleHeader) {
+      throw new BadRequestException("Missing x-user-role header.");
+    }
+
+    const normalizedRole = roleHeader.trim().toUpperCase() as UserRole;
+
+    if (!Object.values(UserRole).includes(normalizedRole)) {
+      throw new BadRequestException("Invalid x-user-role header.");
+    }
+
+    if (normalizedRole !== UserRole.SCHOOL_ADMIN && normalizedRole !== UserRole.SUPER_ADMIN) {
+      throw new ForbiddenException("Only school admins and super admins can modify classes.");
+    }
+
+    return {
+      role: normalizedRole
     };
   }
 }

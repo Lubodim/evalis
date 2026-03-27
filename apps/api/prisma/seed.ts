@@ -113,6 +113,30 @@ async function main() {
     }
   });
 
+  const subject = await prisma.subject.upsert({
+    where: { name: schoolClass.subject },
+    update: {},
+    create: {
+      name: schoolClass.subject
+    }
+  });
+
+  const teachingAssignment = await prisma.teachingAssignment.upsert({
+    where: {
+      schoolClassId_subjectId_teacherUserId: {
+        schoolClassId: schoolClass.id,
+        subjectId: subject.id,
+        teacherUserId: teacher.id
+      }
+    },
+    update: {},
+    create: {
+      schoolClassId: schoolClass.id,
+      subjectId: subject.id,
+      teacherUserId: teacher.id
+    }
+  });
+
   await prisma.enrollment.upsert({
     where: {
       schoolClassId_studentProfileId: {
@@ -184,6 +208,8 @@ async function main() {
     studentProfileId: student.studentProfile.id,
     parentEmail: parent.email,
     schoolClassId: schoolClass.id,
+    subjectId: subject.id,
+    teachingAssignmentId: teachingAssignment.id,
     assessmentId: assessment.id
   });
 }
@@ -196,3 +222,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
