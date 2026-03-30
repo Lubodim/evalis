@@ -40,6 +40,18 @@ async function main() {
     }
   });
 
+  const teacher2 = await prisma.user.upsert({
+    where: { email: "teacher2@evalis.local" },
+    update: {},
+    create: {
+      email: "teacher2@evalis.local",
+      passwordHash: "seed-teacher-2-password",
+      firstName: "Terry",
+      lastName: "TeacherTwo",
+      role: UserRole.TEACHER
+    }
+  });
+
   const student = await prisma.user.upsert({
     where: { email: "student@evalis.local" },
     update: {},
@@ -178,6 +190,76 @@ async function main() {
     }
   });
 
+  const schoolClassTeacher2 = await prisma.schoolClass.upsert({
+    where: { id: "seed-school-class-teacher-2" },
+    update: {
+      name: "Grade 8 Mathematics Teacher 2",
+      subject: "Mathematics",
+      schoolYear: "2025/2026",
+      teacherId: teacher2.id,
+      description: "Teacher 2 sample class for ownership testing"
+    },
+    create: {
+      id: "seed-school-class-teacher-2",
+      name: "Grade 8 Mathematics Teacher 2",
+      subject: "Mathematics",
+      schoolYear: "2025/2026",
+      teacherId: teacher2.id,
+      description: "Teacher 2 sample class for ownership testing"
+    }
+  });
+
+  const subjectTeacher2 = await prisma.subject.upsert({
+    where: { name: schoolClassTeacher2.subject },
+    update: {},
+    create: {
+      name: schoolClassTeacher2.subject
+    }
+  });
+
+  const teachingAssignmentTeacher2 = await prisma.teachingAssignment.upsert({
+    where: {
+      schoolClassId_subjectId_teacherUserId: {
+        schoolClassId: schoolClassTeacher2.id,
+        subjectId: subjectTeacher2.id,
+        teacherUserId: teacher2.id
+      }
+    },
+    update: {},
+    create: {
+      schoolClassId: schoolClassTeacher2.id,
+      subjectId: subjectTeacher2.id,
+      teacherUserId: teacher2.id
+    }
+  });
+
+  const assessmentTeacher2 = await prisma.assessment.upsert({
+    where: { id: "seed-assessment-teacher-2" },
+    update: {
+      schoolClassId: schoolClassTeacher2.id,
+      teacherId: teacher2.id,
+      teachingAssignmentId: teachingAssignmentTeacher2.id,
+      title: "Teacher 2 Fractions Quiz",
+      description: "Teacher 2 sample assessment for ownership testing",
+      type: AssessmentType.QUIZ,
+      totalPoints: 10,
+      publishedAt: new Date("2026-03-20T09:00:00.000Z"),
+      dueAt: new Date("2026-03-24T15:00:00.000Z")
+    },
+    create: {
+      id: "seed-assessment-teacher-2",
+      schoolClassId: schoolClassTeacher2.id,
+      teacherId: teacher2.id,
+      teachingAssignmentId: teachingAssignmentTeacher2.id,
+      title: "Teacher 2 Fractions Quiz",
+      description: "Teacher 2 sample assessment for ownership testing",
+      type: AssessmentType.QUIZ,
+      totalPoints: 10,
+      publishedAt: new Date("2026-03-20T09:00:00.000Z"),
+      dueAt: new Date("2026-03-24T15:00:00.000Z")
+    }
+  });
+
   await prisma.question.upsert({
     where: {
       assessmentId_orderIndex: {
@@ -199,20 +281,46 @@ async function main() {
     }
   });
 
+  await prisma.question.upsert({
+    where: {
+      assessmentId_orderIndex: {
+        assessmentId: assessmentTeacher2.id,
+        orderIndex: 1
+      }
+    },
+    update: {
+      prompt: "What is 3/5 + 1/5?",
+      type: QuestionType.SHORT_TEXT,
+      maxPoints: 10
+    },
+    create: {
+      assessmentId: assessmentTeacher2.id,
+      prompt: "What is 3/5 + 1/5?",
+      type: QuestionType.SHORT_TEXT,
+      maxPoints: 10,
+      orderIndex: 1
+    }
+  });
+
   console.log("Seed completed.");
   console.log({
     superAdminEmail: superAdmin.email,
     schoolAdminEmail: schoolAdmin.email,
     teacherEmail: teacher.email,
     teacherUserId: teacher.id,
+    teacher2Email: teacher2.email,
+    teacher2UserId: teacher2.id,
     studentEmail: student.email,
     studentUserId: student.id,
     studentProfileId: student.studentProfile.id,
     parentEmail: parent.email,
     schoolClassId: schoolClass.id,
+    schoolClassTeacher2Id: schoolClassTeacher2.id,
     subjectId: subject.id,
     teachingAssignmentId: teachingAssignment.id,
-    assessmentId: assessment.id
+    teachingAssignmentTeacher2Id: teachingAssignmentTeacher2.id,
+    assessmentId: assessment.id,
+    assessmentTeacher2Id: assessmentTeacher2.id
   });
 }
 

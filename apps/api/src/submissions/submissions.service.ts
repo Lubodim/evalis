@@ -522,9 +522,7 @@ export class SubmissionsService {
         status: {
           in: [SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED]
         },
-        assessment: {
-          teacherId
-        }
+        assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       orderBy: [{ submittedAt: "desc" }, { createdAt: "desc" }],
       select: {
@@ -571,9 +569,7 @@ export class SubmissionsService {
         status: {
           in: [SubmissionStatus.SUBMITTED, SubmissionStatus.GRADED]
         },
-        assessment: {
-          teacherId
-        }
+        assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       select: teacherSubmissionDetailSelect
     });
@@ -589,9 +585,7 @@ export class SubmissionsService {
     const submission = await this.prisma.submission.findFirst({
       where: {
         id: submissionId,
-        assessment: {
-          teacherId
-        }
+        assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       select: {
         id: true,
@@ -652,9 +646,7 @@ export class SubmissionsService {
     const submission = await this.prisma.submission.findFirst({
       where: {
         id: submissionId,
-        assessment: {
-          teacherId
-        }
+        assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       select: {
         id: true,
@@ -848,7 +840,7 @@ export class SubmissionsService {
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: assessmentId,
-        teacherId
+        ...this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       select: {
         id: true
@@ -858,6 +850,24 @@ export class SubmissionsService {
     if (!assessment) {
       throw new NotFoundException(`Assessment ${assessmentId} was not found for this teacher.`);
     }
+  }
+
+  private buildTeacherOwnedAssessmentWhere(teacherId: string): Prisma.AssessmentWhereInput {
+    return {
+      OR: [
+        {
+          teachingAssignment: {
+            is: {
+              teacherUserId: teacherId
+            }
+          }
+        },
+        {
+          teachingAssignmentId: null,
+          teacherId
+        }
+      ]
+    };
   }
 
   private async ensureParentStudentLink(parentUserId: string, studentProfileId: string) {

@@ -3,9 +3,18 @@ import { TeacherAssessmentSubmissionsSection } from "../../../../components/teac
 import { TeacherReviewVisibilityControl } from "../../../../components/teacher/TeacherReviewVisibilityControl";
 
 const DEFAULT_TEACHER_ID = "cmn0n00et0002uquoq5xo2q09";
+const DEFAULT_TEACHER_2_ID = "cmnasdocd0003uqiglqas1jur";
 const DEFAULT_STUDENT_PROFILE_ID = "cmn0n00f20004uquot7fm6fbz";
 
-function resolveTeacherId() {
+function resolveTeacherId(assessmentId: string) {
+  if (assessmentId === "seed-assessment-teacher-2") {
+    return (
+      process.env.NEXT_PUBLIC_TEACHER_2_ID ??
+      process.env.EVALIS_TEACHER_2_ID ??
+      DEFAULT_TEACHER_2_ID
+    );
+  }
+
   return process.env.NEXT_PUBLIC_TEACHER_ID ?? process.env.EVALIS_TEACHER_ID ?? DEFAULT_TEACHER_ID;
 }
 
@@ -25,7 +34,7 @@ type TeacherAssessmentPageProps = {
 
 export default async function TeacherAssessmentPage({ params }: TeacherAssessmentPageProps) {
   const { assessmentId } = await params;
-  const teacherId = resolveTeacherId();
+  const teacherId = resolveTeacherId(assessmentId);
   const studentProfileId = resolveStudentProfileId();
 
   return (
