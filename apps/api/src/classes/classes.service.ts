@@ -8,6 +8,10 @@ type RequestUser = {
   role: UserRole;
   userId: string | null;
 };
+type ClassWithDisplayLabelFields = {
+  gradeLevel: number | null;
+  classCode: string | null;
+};
 
 @Injectable()
 export class ClassesService {
@@ -18,6 +22,9 @@ export class ClassesService {
     const subject = body.subject?.trim();
     const schoolYear = body.schoolYear?.trim();
     const teacherId = body.teacherId?.trim();
+    const gradeLevel = this.parseRequiredGradeLevel(body.gradeLevel);
+    const classCode = this.parseRequiredClassCode(body.classCode);
+    const isActive = this.parseOptionalIsActive(body.isActive) ?? true;
     const description = this.normalizeOptionalDescription(body.description);
 
     if (!name) {
@@ -39,11 +46,14 @@ export class ClassesService {
     await this.ensureTeacherUserExists(teacherId);
 
     try {
-      return this.prisma.schoolClass.create({
+      const schoolClass = await this.prisma.schoolClass.create({
         data: {
           name,
           subject,
           schoolYear,
+          gradeLevel,
+          classCode,
+          isActive,
           description,
           teacher: {
             connect: {
@@ -56,6 +66,9 @@ export class ClassesService {
           name: true,
           subject: true,
           schoolYear: true,
+          gradeLevel: true,
+          classCode: true,
+          isActive: true,
           description: true,
           createdAt: true,
           updatedAt: true,
@@ -102,6 +115,8 @@ export class ClassesService {
           }
         }
       });
+
+      return this.attachDisplayLabel(schoolClass);
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -122,7 +137,7 @@ export class ClassesService {
             teacherId: currentUser.userId ?? undefined
           };
 
-    return this.prisma.schoolClass.findMany({
+    const classes = await this.prisma.schoolClass.findMany({
       where,
       orderBy: [{ schoolYear: "desc" }, { name: "asc" }],
       select: {
@@ -130,6 +145,9 @@ export class ClassesService {
         name: true,
         subject: true,
         schoolYear: true,
+        gradeLevel: true,
+        classCode: true,
+        isActive: true,
         description: true,
         createdAt: true,
         teacher: {
@@ -148,6 +166,8 @@ export class ClassesService {
         }
       }
     });
+
+    return classes.map((schoolClass) => this.attachDisplayLabel(schoolClass));
   }
 
   async findOneForUser(id: string, currentUser: RequestUser) {
@@ -158,6 +178,9 @@ export class ClassesService {
         name: true,
         subject: true,
         schoolYear: true,
+        gradeLevel: true,
+        classCode: true,
+        isActive: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -215,7 +238,7 @@ export class ClassesService {
     }
 
     const { teacherId: _, ...classData } = schoolClass;
-    return classData;
+    return this.attachDisplayLabel(classData);
   }
 
   async update(id: string, body: UpdateClassDto) {
@@ -234,7 +257,7 @@ export class ClassesService {
       throw new BadRequestException("At least one class field must be provided.");
     }
 
-    return this.prisma.schoolClass.update({
+    const schoolClass = await this.prisma.schoolClass.update({
       where: { id },
       data,
       select: {
@@ -242,6 +265,9 @@ export class ClassesService {
         name: true,
         subject: true,
         schoolYear: true,
+        gradeLevel: true,
+        classCode: true,
+        isActive: true,
         description: true,
         createdAt: true,
         updatedAt: true,
@@ -288,6 +314,8 @@ export class ClassesService {
         }
       }
     });
+
+    return this.attachDisplayLabel(schoolClass);
   }
 
   private buildUpdateData(body: UpdateClassDto) {
@@ -295,6 +323,9 @@ export class ClassesService {
       name?: string;
       subject?: string;
       schoolYear?: string;
+      gradeLevel?: number;
+      classCode?: string;
+      isActive?: boolean;
       description?: string | null;
     } = {};
 
@@ -328,11 +359,72 @@ export class ClassesService {
       data.schoolYear = schoolYear;
     }
 
+    if (body.gradeLevel !== undefined) {
+      data.gradeLevel = this.parseRequiredGradeLevel(body.gradeLevel);
+    }
+
+    if (body.classCode !== undefined) {
+      data.classCode = this.parseRequiredClassCode(body.classCode);
+    }
+
+    if (body.isActive !== undefined) {
+      data.isActive = this.parseOptionalIsActive(body.isActive);
+    }
+
     if (body.description !== undefined) {
       data.description = this.normalizeOptionalDescription(body.description);
     }
 
     return data;
+  }
+
+  private attachDisplayLabel<T extends ClassWithDisplayLabelFields>(schoolClass: T) {
+    return {
+      ...schoolClass,
+      displayLabel: this.buildDisplayLabel(schoolClass.gradeLevel, schoolClass.classCode)
+    };
+  }
+
+  private buildDisplayLabel(gradeLevel: number | null, classCode: string | null) {
+    if (gradeLevel === null || !classCode) {
+      return null;
+    }
+
+    return `${gradeLevel}-${classCode}`;
+  }
+
+  private parseRequiredGradeLevel(value: number | undefined) {
+    if (value === undefined) {
+      throw new BadRequestException("gradeLevel is required.");
+    }
+
+    if (!Number.isInteger(value) || value < 1 || value > 12) {
+      throw new BadRequestException("gradeLevel must be an integer between 1 and 12.");
+    }
+
+    return value;
+  }
+
+  private parseRequiredClassCode(value: string | undefined) {
+    const classCode = value?.trim();
+
+    if (!classCode) {
+      throw new BadRequestException("classCode is required.");
+    }
+
+    return classCode;
+  }
+
+  private parseOptionalIsActive(value: boolean | undefined) {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (typeof value !== "boolean") {
+      throw new BadRequestException("isActive must be a boolean.");
+    }
+
+    return value;
   }
 
   private normalizeOptionalDescription(value: string | null | undefined) {
@@ -368,4 +460,3 @@ export class ClassesService {
     }
   }
 }
-

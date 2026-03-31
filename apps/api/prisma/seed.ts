@@ -112,6 +112,9 @@ async function main() {
       name: "Grade 7 Mathematics",
       subject: "Mathematics",
       schoolYear: "2025/2026",
+      gradeLevel: 7,
+      classCode: "251",
+      isActive: true,
       teacherId: teacher.id,
       description: "Sample class for MVP development"
     },
@@ -120,6 +123,9 @@ async function main() {
       name: "Grade 7 Mathematics",
       subject: "Mathematics",
       schoolYear: "2025/2026",
+      gradeLevel: 7,
+      classCode: "251",
+      isActive: true,
       teacherId: teacher.id,
       description: "Sample class for MVP development"
     }
@@ -196,6 +202,9 @@ async function main() {
       name: "Grade 8 Mathematics Teacher 2",
       subject: "Mathematics",
       schoolYear: "2025/2026",
+      gradeLevel: 8,
+      classCode: "252",
+      isActive: true,
       teacherId: teacher2.id,
       description: "Teacher 2 sample class for ownership testing"
     },
@@ -204,6 +213,9 @@ async function main() {
       name: "Grade 8 Mathematics Teacher 2",
       subject: "Mathematics",
       schoolYear: "2025/2026",
+      gradeLevel: 8,
+      classCode: "252",
+      isActive: true,
       teacherId: teacher2.id,
       description: "Teacher 2 sample class for ownership testing"
     }
