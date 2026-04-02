@@ -120,14 +120,16 @@ model SchoolClass {
 }
 
 model Enrollment {
-  id               String         @id @default(cuid())
-  schoolClassId    String
-  studentProfileId String
-  enrolledAt       DateTime       @default(now())
-  schoolClass      SchoolClass    @relation(fields: [schoolClassId], references: [id])
-  studentProfile   StudentProfile @relation(fields: [studentProfileId], references: [id])
+  id                   String         @id @default(cuid())
+  schoolClassId        String
+  studentProfileId     String
+  studentNumberInClass Int?
+  enrolledAt           DateTime       @default(now())
+  schoolClass          SchoolClass    @relation(fields: [schoolClassId], references: [id])
+  studentProfile       StudentProfile @relation(fields: [studentProfileId], references: [id])
 
   @@unique([schoolClassId, studentProfileId])
+  @@unique([schoolClassId, studentNumberInClass])
 }
 
 model Subject {
@@ -285,3 +287,4 @@ model ExamSessionDevice {
   updatedAt                DateTime                @updatedAt
   participant              ExamSessionParticipant  @relation(fields: [examSessionParticipantId], references: [id])
 }
+

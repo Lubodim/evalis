@@ -12,8 +12,10 @@ import {
 } from "@nestjs/common";
 import { UserRole } from "@prisma/client";
 import { ClassesService } from "./classes.service";
+import { AssignStudentToClassDto } from "./dto/assign-student-to-class.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
+import { UpdateClassEnrollmentDto } from "./dto/update-class-enrollment.dto";
 
 type RequestUser = {
   role: UserRole;
@@ -70,6 +72,27 @@ export class ClassesController {
   ) {
     this.getAdminWriteUser(roleHeader);
     return this.classesService.update(id, body);
+  }
+
+  @Post(":id/enrollments")
+  async assignStudentToClass(
+    @Param("id") id: string,
+    @Body() body: AssignStudentToClassDto,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.assignStudentToClass(id, body);
+  }
+
+  @Patch(":id/enrollments/:enrollmentId")
+  async updateEnrollmentStudentNumber(
+    @Param("id") id: string,
+    @Param("enrollmentId") enrollmentId: string,
+    @Body() body: UpdateClassEnrollmentDto,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.updateEnrollmentStudentNumber(id, enrollmentId, body);
   }
 
   private getCurrentUser(roleHeader?: string, userIdHeader?: string): RequestUser {

@@ -162,10 +162,13 @@ async function main() {
         studentProfileId: student.studentProfile.id
       }
     },
-    update: {},
+    update: {
+      studentNumberInClass: 1
+    },
     create: {
       schoolClassId: schoolClass.id,
-      studentProfileId: student.studentProfile.id
+      studentProfileId: student.studentProfile.id,
+      studentNumberInClass: 1
     }
   });
 
@@ -344,3 +347,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
