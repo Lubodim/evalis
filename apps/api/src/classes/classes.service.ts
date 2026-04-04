@@ -217,6 +217,18 @@ export class ClassesService {
             email: true
           }
         },
+        ...(currentUser.role === UserRole.TEACHER
+          ? {
+              teachingAssignments: {
+                where: {
+                  teacherUserId: currentUser.userId ?? undefined
+                },
+                select: {
+                  id: true
+                }
+              }
+            }
+          : {}),
         enrollments: {
           select: {
             id: true,
@@ -239,6 +251,25 @@ export class ClassesService {
           }
         },
         assessments: {
+          ...(currentUser.role === UserRole.TEACHER
+            ? {
+                where: {
+                  OR: [
+                    {
+                      teachingAssignment: {
+                        is: {
+                          teacherUserId: currentUser.userId ?? undefined
+                        }
+                      }
+                    },
+                    {
+                      teachingAssignmentId: null,
+                      teacherId: currentUser.userId ?? undefined
+                    }
+                  ]
+                }
+              }
+            : {}),
           select: {
             id: true,
             title: true,
@@ -258,11 +289,16 @@ export class ClassesService {
       return null;
     }
 
-    if (currentUser.role === UserRole.TEACHER && schoolClass.teacherId !== currentUser.userId) {
-      return null;
+    if (currentUser.role === UserRole.TEACHER) {
+      const hasLegacyAccess = schoolClass.teacherId === currentUser.userId;
+      const hasTeachingAssignmentAccess = schoolClass.teachingAssignments.length > 0;
+
+      if (!hasLegacyAccess && !hasTeachingAssignmentAccess) {
+        return null;
+      }
     }
 
-    const { teacherId: _, ...classData } = schoolClass;
+    const { teacherId: _, teachingAssignments: __, ...classData } = schoolClass;
     return this.attachEnrollmentDisplayIdentifiersToClass(classData);
   }
 
@@ -727,4 +763,5 @@ export class ClassesService {
     throw error;
   }
 }
+
 
