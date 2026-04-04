@@ -5,6 +5,7 @@ import { UsersModule } from "./users/users.module";
 import { ClassesModule } from "./classes/classes.module";
 import { AssessmentsModule } from "./assessments/assessments.module";
 import { ExamSessionsModule } from "./exam-sessions/exam-sessions.module";
+import { ParentStudentLinksModule } from "./parent-student-links/parent-student-links.module";
 import { SubmissionsModule } from "./submissions/submissions.module";
 import { PrismaModule } from "./prisma/prisma.module";
 
@@ -16,6 +17,7 @@ import { PrismaModule } from "./prisma/prisma.module";
     ClassesModule,
     AssessmentsModule,
     ExamSessionsModule,
+    ParentStudentLinksModule,
     SubmissionsModule
   ],
   controllers: [HealthController]
