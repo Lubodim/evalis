@@ -147,7 +147,18 @@ export class ClassesService {
       currentUser.role === UserRole.SCHOOL_ADMIN
         ? {}
         : {
-            teacherId: currentUser.userId ?? undefined
+            OR: [
+              {
+                teacherId: currentUser.userId ?? undefined
+              },
+              {
+                teachingAssignments: {
+                  some: {
+                    teacherUserId: currentUser.userId ?? undefined
+                  }
+                }
+              }
+            ]
           };
 
     const classes = await this.prisma.schoolClass.findMany({
@@ -716,3 +727,4 @@ export class ClassesService {
     throw error;
   }
 }
+
