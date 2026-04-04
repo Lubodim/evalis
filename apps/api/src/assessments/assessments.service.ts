@@ -167,11 +167,36 @@ export class AssessmentsService {
       select: {
         id: true,
         teacherId: true,
-        subject: true
+        subject: true,
+        teachingAssignments: {
+          where: {
+            teacherUserId: teacherId
+          },
+          select: {
+            id: true,
+            subject: {
+              select: {
+                name: true
+              }
+            }
+          }
+        }
       }
     });
 
-    if (!schoolClass || schoolClass.teacherId !== teacherId) {
+    if (!schoolClass) {
+      throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
+    }
+
+    const classSubject = schoolClass.subject.trim();
+    const hasLegacyAccess = schoolClass.teacherId === teacherId;
+    const hasTeachingAssignmentAccess = classSubject
+      ? schoolClass.teachingAssignments.some(
+          (assignment) => assignment.subject.name === classSubject
+        )
+      : false;
+
+    if (!hasLegacyAccess && !hasTeachingAssignmentAccess) {
       throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
     }
 
