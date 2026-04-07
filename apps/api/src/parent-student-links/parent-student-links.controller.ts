@@ -18,11 +18,20 @@ type AdminWriteUser = {
   role: Extract<UserRole, "SCHOOL_ADMIN" | "SUPER_ADMIN">;
 };
 
-@Controller("students")
+@Controller()
 export class ParentStudentLinksController {
   constructor(private readonly parentStudentLinksService: ParentStudentLinksService) {}
 
-  @Post(":studentProfileId/parents")
+  @Get("parents/:parentUserId/students")
+  async findStudentsForParent(
+    @Param("parentUserId") parentUserId: string,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.parentStudentLinksService.findStudentsForParent(parentUserId);
+  }
+
+  @Post("students/:studentProfileId/parents")
   async create(
     @Param("studentProfileId") studentProfileId: string,
     @Body() body: CreateParentStudentLinkDto,
@@ -32,7 +41,7 @@ export class ParentStudentLinksController {
     return this.parentStudentLinksService.create(studentProfileId, body);
   }
 
-  @Get(":studentProfileId/parents")
+  @Get("students/:studentProfileId/parents")
   async findParentsForStudent(
     @Param("studentProfileId") studentProfileId: string,
     @Headers("x-user-role") roleHeader?: string
@@ -41,7 +50,7 @@ export class ParentStudentLinksController {
     return this.parentStudentLinksService.findParentsForStudent(studentProfileId);
   }
 
-  @Delete(":studentProfileId/parents/:parentUserId")
+  @Delete("students/:studentProfileId/parents/:parentUserId")
   @HttpCode(204)
   async remove(
     @Param("studentProfileId") studentProfileId: string,

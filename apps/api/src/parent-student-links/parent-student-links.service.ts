@@ -17,9 +17,67 @@ const parentListSelect = {
   role: true
 } satisfies Prisma.UserSelect;
 
+const studentListSelect = {
+  id: true,
+  studentNumber: true,
+  user: {
+    select: {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      isActive: true
+    }
+  }
+} satisfies Prisma.StudentProfileSelect;
+
 @Injectable()
 export class ParentStudentLinksService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findStudentsForParent(parentUserId: string) {
+    const normalizedParentUserId = this.parseRequiredId(parentUserId, "parentUserId");
+
+    await this.ensureParentUserExists(normalizedParentUserId);
+
+    const links = await this.prisma.parentStudentLink.findMany({
+      where: {
+        parentUserId: normalizedParentUserId
+      },
+      orderBy: [
+        {
+          studentProfile: {
+            user: {
+              firstName: "asc"
+            }
+          }
+        },
+        {
+          studentProfile: {
+            user: {
+              lastName: "asc"
+            }
+          }
+        },
+        {
+          createdAt: "asc"
+        }
+      ],
+      select: {
+        relationshipType: true,
+        studentProfile: {
+          select: studentListSelect
+        }
+      }
+    });
+
+    return links.map(({ relationshipType, studentProfile }) => ({
+      studentProfileId: studentProfile.id,
+      studentNumber: studentProfile.studentNumber,
+      user: studentProfile.user,
+      relationshipType
+    }));
+  }
 
   async create(studentProfileId: string, body: CreateParentStudentLinkDto) {
     const normalizedStudentProfileId = this.parseRequiredId(studentProfileId, "studentProfileId");
