@@ -145,7 +145,7 @@ export class ClassesService {
 
   async findAllForUser(currentUser: RequestUser) {
     const where =
-      currentUser.role === UserRole.SCHOOL_ADMIN
+      currentUser.role === UserRole.SCHOOL_ADMIN || currentUser.role === UserRole.SUPER_ADMIN
         ? {}
         : {
             OR: [

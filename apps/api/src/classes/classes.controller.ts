@@ -127,8 +127,12 @@ export class ClassesController {
       throw new BadRequestException("Invalid x-user-role header.");
     }
 
-    if (normalizedRole !== UserRole.SCHOOL_ADMIN && normalizedRole !== UserRole.TEACHER) {
-      throw new ForbiddenException("Only school admins and teachers can access classes.");
+    if (
+      normalizedRole !== UserRole.SCHOOL_ADMIN &&
+      normalizedRole !== UserRole.SUPER_ADMIN &&
+      normalizedRole !== UserRole.TEACHER
+    ) {
+      throw new ForbiddenException("Only school admins, super admins, and teachers can access classes.");
     }
 
     if (normalizedRole === UserRole.TEACHER && !normalizedUserId) {
