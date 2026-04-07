@@ -77,6 +77,12 @@ const teacherExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
   }
 });
 
+const teacherExamSessionAccessSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
+  id: true,
+  assessmentId: true,
+  status: true
+});
+
 const studentExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
   id: true,
   status: true,
@@ -118,6 +124,10 @@ const studentExamSessionSelect = Prisma.validator<Prisma.ExamSessionSelect>()({
     }
   }
 });
+
+type TeacherExamSessionAccessView = Prisma.ExamSessionGetPayload<{
+  select: typeof teacherExamSessionAccessSelect;
+}>;
 
 type StudentExamSessionView = Prisma.ExamSessionGetPayload<{
   select: typeof studentExamSessionSelect;
@@ -170,7 +180,7 @@ export class ExamSessionsService {
     return this.prisma.examSession.findFirst({
       where: {
         assessmentId,
-        teacherId,
+        assessment: { is: this.buildTeacherOwnedAssessmentWhere(teacherId) },
         status: {
           in: [ExamSessionStatus.WAITING, ExamSessionStatus.ACTIVE]
         }
@@ -183,10 +193,11 @@ export class ExamSessionsService {
   }
 
   async findOneForTeacher(examSessionId: string, teacherId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
+    await this.ensureTeacherExamSessionAccess(examSessionId, teacherId);
+
+    const examSession = await this.prisma.examSession.findUnique({
       where: {
-        id: examSessionId,
-        teacherId
+        id: examSessionId
       },
       select: teacherExamSessionSelect
     });
@@ -275,20 +286,7 @@ export class ExamSessionsService {
   }
 
   async approveParticipant(examSessionId: string, studentProfileId: string, teacherId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
-      where: {
-        id: examSessionId,
-        teacherId
-      },
-      select: {
-        id: true,
-        status: true
-      }
-    });
-
-    if (!examSession) {
-      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
-    }
+    const examSession = await this.ensureTeacherExamSessionAccess(examSessionId, teacherId);
 
     if (examSession.status !== ExamSessionStatus.WAITING) {
       throw new BadRequestException("Participants can only be approved while the exam session is WAITING.");
@@ -329,20 +327,7 @@ export class ExamSessionsService {
   }
 
   async approveParticipantDevice(examSessionId: string, studentProfileId: string, teacherId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
-      where: {
-        id: examSessionId,
-        teacherId
-      },
-      select: {
-        id: true,
-        status: true
-      }
-    });
-
-    if (!examSession) {
-      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
-    }
+    const examSession = await this.ensureTeacherExamSessionAccess(examSessionId, teacherId);
 
     if (examSession.status !== ExamSessionStatus.WAITING) {
       throw new BadRequestException("Devices can only be approved while the exam session is WAITING.");
@@ -395,20 +380,7 @@ export class ExamSessionsService {
   }
 
   async start(examSessionId: string, teacherId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
-      where: {
-        id: examSessionId,
-        teacherId
-      },
-      select: {
-        id: true,
-        status: true
-      }
-    });
-
-    if (!examSession) {
-      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
-    }
+    const examSession = await this.ensureTeacherExamSessionAccess(examSessionId, teacherId);
 
     if (examSession.status !== ExamSessionStatus.WAITING) {
       throw new BadRequestException("Only WAITING exam sessions can be started.");
@@ -428,20 +400,7 @@ export class ExamSessionsService {
   }
 
   async end(examSessionId: string, teacherId: string) {
-    const examSession = await this.prisma.examSession.findFirst({
-      where: {
-        id: examSessionId,
-        teacherId
-      },
-      select: {
-        id: true,
-        status: true
-      }
-    });
-
-    if (!examSession) {
-      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
-    }
+    const examSession = await this.ensureTeacherExamSessionAccess(examSessionId, teacherId);
 
     if (examSession.status !== ExamSessionStatus.ACTIVE) {
       throw new BadRequestException("Only ACTIVE exam sessions can be ended.");
@@ -598,19 +557,7 @@ export class ExamSessionsService {
     const assessment = await this.prisma.assessment.findFirst({
       where: {
         id: assessmentId,
-        OR: [
-          {
-            teachingAssignment: {
-              is: {
-                teacherUserId: teacherId
-              }
-            }
-          },
-          {
-            teachingAssignmentId: null,
-            teacherId
-          }
-        ]
+        ...this.buildTeacherOwnedAssessmentWhere(teacherId)
       },
       select: {
         id: true
@@ -622,6 +569,44 @@ export class ExamSessionsService {
     }
 
     return assessment;
+  }
+
+  private async ensureTeacherExamSessionAccess(
+    examSessionId: string,
+    teacherId: string
+  ): Promise<TeacherExamSessionAccessView> {
+    const examSession = await this.prisma.examSession.findUnique({
+      where: {
+        id: examSessionId
+      },
+      select: teacherExamSessionAccessSelect
+    });
+
+    if (!examSession) {
+      throw new NotFoundException(`Exam session ${examSessionId} was not found for this teacher.`);
+    }
+
+    await this.ensureTeacherAssessmentExists(examSession.assessmentId, teacherId);
+
+    return examSession;
+  }
+
+  private buildTeacherOwnedAssessmentWhere(teacherId: string): Prisma.AssessmentWhereInput {
+    return {
+      OR: [
+        {
+          teachingAssignment: {
+            is: {
+              teacherUserId: teacherId
+            }
+          }
+        },
+        {
+          teachingAssignmentId: null,
+          teacherId
+        }
+      ]
+    };
   }
 
   private async getStudentProfile(studentIdentity: string) {
@@ -725,3 +710,4 @@ export class ExamSessionsService {
     }
   }
 }
+
