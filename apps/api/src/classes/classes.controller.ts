@@ -14,6 +14,7 @@ import { UserRole } from "@prisma/client";
 import { ClassesService } from "./classes.service";
 import { AssignStudentToClassDto } from "./dto/assign-student-to-class.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
+import { MoveStudentToClassDto } from "./dto/move-student-to-class.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
 import { UpdateClassEnrollmentDto } from "./dto/update-class-enrollment.dto";
 
@@ -37,6 +38,15 @@ export class ClassesController {
   ) {
     const currentUser = this.getCurrentUser(roleHeader, userIdHeader);
     return this.classesService.findAllForUser(currentUser);
+  }
+
+  @Get("students/:studentProfileId/enrollments")
+  async findStudentMemberships(
+    @Param("studentProfileId") studentProfileId: string,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.findStudentMemberships(studentProfileId);
   }
 
   @Get(":id")
@@ -82,6 +92,16 @@ export class ClassesController {
   ) {
     this.getAdminWriteUser(roleHeader);
     return this.classesService.assignStudentToClass(id, body);
+  }
+
+  @Post(":id/enrollments/move")
+  async moveStudentToClass(
+    @Param("id") id: string,
+    @Body() body: MoveStudentToClassDto,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.classesService.moveStudentToClass(id, body);
   }
 
   @Patch(":id/enrollments/:enrollmentId")

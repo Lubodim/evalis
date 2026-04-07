@@ -8,6 +8,7 @@ import { Prisma, UserRole } from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssignStudentToClassDto } from "./dto/assign-student-to-class.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
+import { MoveStudentToClassDto } from "./dto/move-student-to-class.dto";
 import { UpdateClassDto } from "./dto/update-class.dto";
 import { UpdateClassEnrollmentDto } from "./dto/update-class-enrollment.dto";
 
@@ -302,6 +303,70 @@ export class ClassesService {
     return this.attachEnrollmentDisplayIdentifiersToClass(classData);
   }
 
+  async findStudentMemberships(studentProfileId: string) {
+    const normalizedStudentProfileId = this.parseRequiredStudentProfileId(studentProfileId);
+
+    const studentProfile = await this.prisma.studentProfile.findUnique({
+      where: {
+        id: normalizedStudentProfileId
+      },
+      select: {
+        id: true,
+        studentNumber: true,
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true
+          }
+        },
+        enrollments: {
+          orderBy: {
+            enrolledAt: "desc"
+          },
+          select: {
+            id: true,
+            enrolledAt: true,
+            studentNumberInClass: true,
+            schoolClass: {
+              select: {
+                id: true,
+                name: true,
+                subject: true,
+                schoolYear: true,
+                gradeLevel: true,
+                classCode: true,
+                isActive: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    if (!studentProfile) {
+      throw new NotFoundException(`Student profile ${normalizedStudentProfileId} was not found.`);
+    }
+
+    return {
+      id: studentProfile.id,
+      studentNumber: studentProfile.studentNumber,
+      user: studentProfile.user,
+      memberships: studentProfile.enrollments.map((enrollment) => ({
+        id: enrollment.id,
+        enrolledAt: enrollment.enrolledAt,
+        studentNumberInClass: enrollment.studentNumberInClass,
+        displayIdentifier: this.buildEnrollmentDisplayIdentifier(
+          enrollment.schoolClass.gradeLevel,
+          enrollment.schoolClass.classCode,
+          enrollment.studentNumberInClass
+        ),
+        schoolClass: this.attachDisplayLabel(enrollment.schoolClass)
+      }))
+    };
+  }
+
   async update(id: string, body: UpdateClassDto) {
     const existingClass = await this.prisma.schoolClass.findUnique({
       where: { id },
@@ -420,6 +485,89 @@ export class ClassesService {
         schoolClass.gradeLevel,
         schoolClass.classCode
       );
+    } catch (error) {
+      this.handleEnrollmentWriteError(error, studentProfileId, studentNumberInClass);
+    }
+  }
+
+  async moveStudentToClass(id: string, body: MoveStudentToClassDto) {
+    const targetClass = await this.getClassForEnrollmentDisplay(id);
+    const studentProfileId = this.parseRequiredStudentProfileId(body.studentProfileId);
+    const fromClassId = this.parseRequiredClassId(body.fromClassId, "fromClassId");
+    const studentNumberInClass = this.parseRequiredStudentNumberInClass(body.studentNumberInClass);
+
+    if (fromClassId === id) {
+      throw new BadRequestException("fromClassId must be different from the target class id.");
+    }
+
+    await this.ensureStudentProfileExists(studentProfileId);
+
+    const sourceEnrollment = await this.prisma.enrollment.findUnique({
+      where: {
+        schoolClassId_studentProfileId: {
+          schoolClassId: fromClassId,
+          studentProfileId
+        }
+      },
+      select: {
+        id: true
+      }
+    });
+
+    if (!sourceEnrollment) {
+      throw new NotFoundException(
+        `Student profile ${studentProfileId} is not enrolled in class ${fromClassId}.`
+      );
+    }
+
+    try {
+      const enrollment = await this.prisma.$transaction(async (tx) => {
+        const createdEnrollment = await tx.enrollment.create({
+          data: {
+            schoolClassId: id,
+            studentProfileId,
+            studentNumberInClass
+          },
+          select: {
+            id: true,
+            enrolledAt: true,
+            studentNumberInClass: true,
+            studentProfile: {
+              select: {
+                id: true,
+                studentNumber: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        });
+
+        await tx.enrollment.delete({
+          where: {
+            id: sourceEnrollment.id
+          }
+        });
+
+        return createdEnrollment;
+      });
+
+      return {
+        studentProfileId,
+        fromClassId,
+        toClassId: id,
+        enrollment: this.attachEnrollmentDisplayIdentifier(
+          enrollment,
+          targetClass.gradeLevel,
+          targetClass.classCode
+        )
+      };
     } catch (error) {
       this.handleEnrollmentWriteError(error, studentProfileId, studentNumberInClass);
     }
@@ -659,6 +807,16 @@ export class ClassesService {
     }
 
     return studentProfileId;
+  }
+
+  private parseRequiredClassId(value: string | undefined, fieldName: "fromClassId") {
+    const classId = value?.trim();
+
+    if (!classId) {
+      throw new BadRequestException(`${fieldName} is required.`);
+    }
+
+    return classId;
   }
 
   private parseRequiredStudentNumberInClass(value: number | undefined) {
