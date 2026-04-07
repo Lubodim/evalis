@@ -22,6 +22,15 @@ type AdminWriteUser = {
 export class TeachingAssignmentsController {
   constructor(private readonly teachingAssignmentsService: TeachingAssignmentsService) {}
 
+  @Get("teachers/:teacherUserId/teaching-assignments")
+  async findForTeacher(
+    @Param("teacherUserId") teacherUserId: string,
+    @Headers("x-user-role") roleHeader?: string
+  ) {
+    this.getAdminWriteUser(roleHeader);
+    return this.teachingAssignmentsService.findForTeacher(teacherUserId);
+  }
+
   @Post(":classId/teaching-assignments")
   async create(
     @Param("classId") classId: string,

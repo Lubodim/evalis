@@ -32,9 +32,71 @@ const teachingAssignmentSelect = {
   }
 } satisfies Prisma.TeachingAssignmentSelect;
 
+const teacherAssignmentSummarySelect = {
+  id: true,
+  schoolClassId: true,
+  teacherUserId: true,
+  createdAt: true,
+  teacher: {
+    select: teacherSelect
+  },
+  schoolClass: {
+    select: {
+      id: true,
+      name: true,
+      subject: true,
+      schoolYear: true,
+      gradeLevel: true,
+      classCode: true,
+      isActive: true
+    }
+  },
+  subject: {
+    select: {
+      id: true,
+      name: true
+    }
+  }
+} satisfies Prisma.TeachingAssignmentSelect;
+
 @Injectable()
 export class TeachingAssignmentsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  async findForTeacher(teacherUserId: string) {
+    const normalizedTeacherUserId = this.parseRequiredId(teacherUserId, "teacherUserId");
+
+    await this.ensureTeacherUserExists(normalizedTeacherUserId);
+
+    const assignments = await this.prisma.teachingAssignment.findMany({
+      where: {
+        teacherUserId: normalizedTeacherUserId
+      },
+      orderBy: [
+        {
+          schoolClass: {
+            schoolYear: "desc"
+          }
+        },
+        {
+          schoolClass: {
+            name: "asc"
+          }
+        },
+        {
+          subject: {
+            name: "asc"
+          }
+        },
+        {
+          createdAt: "asc"
+        }
+      ],
+      select: teacherAssignmentSummarySelect
+    });
+
+    return assignments.map((assignment) => this.serializeTeacherAssignment(assignment));
+  }
 
   async create(classId: string, body: CreateTeachingAssignmentDto) {
     const normalizedClassId = this.parseRequiredId(classId, "classId");
@@ -130,6 +192,28 @@ export class TeachingAssignmentsService {
     });
   }
 
+  private serializeTeacherAssignment(
+    assignment: Prisma.TeachingAssignmentGetPayload<{ select: typeof teacherAssignmentSummarySelect }>
+  ) {
+    const { role: _, ...teacher } = assignment.teacher;
+
+    return {
+      assignmentId: assignment.id,
+      teacherUserId: assignment.teacherUserId,
+      teacher,
+      classId: assignment.schoolClassId,
+      schoolClass: {
+        ...assignment.schoolClass,
+        displayLabel: this.buildDisplayLabel(
+          assignment.schoolClass.gradeLevel,
+          assignment.schoolClass.classCode
+        )
+      },
+      subject: assignment.subject,
+      createdAt: assignment.createdAt
+    };
+  }
+
   private serializeAssignment(assignment: Prisma.TeachingAssignmentGetPayload<{ select: typeof teachingAssignmentSelect }>) {
     const { role: _, ...teacher } = assignment.teacher;
 
@@ -140,6 +224,14 @@ export class TeachingAssignmentsService {
       classId: assignment.schoolClassId,
       subject: assignment.subject
     };
+  }
+
+  private buildDisplayLabel(gradeLevel: number | null, classCode: string | null) {
+    if (gradeLevel === null || !classCode) {
+      return null;
+    }
+
+    return `${gradeLevel}-${classCode}`;
   }
 
   private parseRequiredId(
