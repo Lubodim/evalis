@@ -2,11 +2,95 @@ export type TeacherExamSessionStatus = "WAITING" | "ACTIVE" | "ENDED";
 export type TeacherExamSessionParticipantStatus = "JOINED" | "APPROVED";
 export type TeacherExamSessionDeviceStatus = "PENDING" | "APPROVED";
 export type TeacherSubmissionStatus = "DRAFT" | "SUBMITTED" | "GRADED";
+export type TeacherAssessmentType = "QUIZ" | "ASSIGNMENT" | "TEST";
 export type TeacherAssessmentReviewMode =
   | "NONE"
   | "SCORE_ONLY"
   | "ANSWERS_NO_EXPLANATIONS"
   | "ANSWERS_WITH_EXPLANATIONS";
+
+export interface TeacherClassSummary {
+  id: string;
+  name: string;
+  subject: string;
+  schoolYear: string;
+  gradeLevel: number | null;
+  classCode: string | null;
+  displayLabel: string | null;
+  isActive: boolean;
+  description: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TeacherOperationsStudentUser {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+}
+
+export interface TeacherClassOperationsStudentSummary {
+  studentProfileId: string;
+  studentNumber: string | null;
+  studentNumberInClass: number | null;
+  enrolledAt: string;
+  displayIdentifier: string | null;
+  user: TeacherOperationsStudentUser;
+}
+
+export interface TeacherOperationsAssessmentSummary {
+  assessmentId: string;
+  title: string;
+  type: TeacherAssessmentType;
+  totalPoints: number;
+  publishedAt: string | null;
+  dueAt: string | null;
+  reviewMode: TeacherAssessmentReviewMode;
+  reviewAvailableAt: string | null;
+  createdAt: string;
+}
+
+export interface TeacherOperationsResultSummary {
+  totalScore: number;
+  maxScore: number;
+  percentage: number | null;
+  gradeLabel: string | null;
+  publishedAt: string | null;
+}
+
+export interface TeacherClassSubmissionSummary {
+  studentProfileId: string;
+  assessmentId: string;
+  submissionCount: number;
+  latestSubmissionStatus: TeacherSubmissionStatus;
+  latestSubmittedAt: string | null;
+  latestUpdatedAt: string;
+  latestResult: TeacherOperationsResultSummary | null;
+}
+
+export interface TeacherStudentSubmissionSummary {
+  assessmentId: string;
+  submissionCount: number;
+  latestSubmissionStatus: TeacherSubmissionStatus;
+  latestSubmittedAt: string | null;
+  latestUpdatedAt: string;
+  latestResult: TeacherOperationsResultSummary | null;
+}
+
+export interface TeacherClassOperationsDetail {
+  class: TeacherClassSummary;
+  students: TeacherClassOperationsStudentSummary[];
+  assessments: TeacherOperationsAssessmentSummary[];
+  submissionSummaries: TeacherClassSubmissionSummary[];
+}
+
+export interface TeacherStudentOperationsDetail {
+  class: TeacherClassSummary;
+  student: TeacherClassOperationsStudentSummary;
+  assessments: TeacherOperationsAssessmentSummary[];
+  submissionSummaries: TeacherStudentSubmissionSummary[];
+}
 
 export interface TeacherExamSessionAssessmentSummary {
   id: string;

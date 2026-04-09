@@ -2,9 +2,11 @@ import { apiRequest } from "./client";
 import type {
   TeacherAssessmentReviewSettings,
   TeacherAssessmentSubmissionListItem,
+  TeacherClassOperationsDetail,
   TeacherExamSessionDetail,
   TeacherExamSessionDevicesDetail,
   TeacherGradeSubmissionInput,
+  TeacherStudentOperationsDetail,
   TeacherSubmissionDetail
 } from "../../types/teacher";
 
@@ -20,6 +22,33 @@ export async function createTeacherExamSession(assessmentId: string, teacherId: 
       "x-user-id": teacherId
     }
   });
+}
+
+export async function getTeacherClassOperations(classId: string, teacherId: string) {
+  return apiRequest<TeacherClassOperationsDetail>(`/teacher/classes/${classId}/operations`, {
+    method: "GET",
+    headers: {
+      ...TEACHER_HEADERS,
+      "x-user-id": teacherId
+    }
+  });
+}
+
+export async function getTeacherStudentOperations(
+  classId: string,
+  studentProfileId: string,
+  teacherId: string
+) {
+  return apiRequest<TeacherStudentOperationsDetail>(
+    `/teacher/classes/${classId}/students/${studentProfileId}/operations`,
+    {
+      method: "GET",
+      headers: {
+        ...TEACHER_HEADERS,
+        "x-user-id": teacherId
+      }
+    }
+  );
 }
 
 export async function getCurrentTeacherExamSession(assessmentId: string, teacherId: string) {
