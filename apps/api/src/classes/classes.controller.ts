@@ -23,15 +23,20 @@ type RequestUser = {
   userId: string | null;
 };
 
+type TeacherRequestUser = {
+  role: typeof UserRole.TEACHER;
+  userId: string;
+};
+
 type AdminWriteUser = {
   role: Extract<UserRole, "SCHOOL_ADMIN" | "SUPER_ADMIN">;
 };
 
-@Controller("classes")
+@Controller()
 export class ClassesController {
   constructor(private readonly classesService: ClassesService) {}
 
-  @Get()
+  @Get("classes")
   async findAll(
     @Headers("x-user-role") roleHeader?: string,
     @Headers("x-user-id") userIdHeader?: string
@@ -40,7 +45,7 @@ export class ClassesController {
     return this.classesService.findAllForUser(currentUser);
   }
 
-  @Get("students/:studentProfileId/enrollments")
+  @Get("classes/students/:studentProfileId/enrollments")
   async findStudentMemberships(
     @Param("studentProfileId") studentProfileId: string,
     @Headers("x-user-role") roleHeader?: string
@@ -49,7 +54,26 @@ export class ClassesController {
     return this.classesService.findStudentMemberships(studentProfileId);
   }
 
-  @Get(":id")
+  @Get("teacher/classes/:classId/operations")
+  async findTeacherOperations(
+    @Param("classId") classId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    const operationsView = await this.classesService.findOperationsForTeacher(
+      classId,
+      currentUser.userId
+    );
+
+    if (!operationsView) {
+      throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
+    }
+
+    return operationsView;
+  }
+
+  @Get("classes/:id")
   async findOne(
     @Param("id") id: string,
     @Headers("x-user-role") roleHeader?: string,
@@ -65,7 +89,7 @@ export class ClassesController {
     return schoolClass;
   }
 
-  @Post()
+  @Post("classes")
   async create(
     @Body() body: CreateClassDto,
     @Headers("x-user-role") roleHeader?: string
@@ -74,7 +98,7 @@ export class ClassesController {
     return this.classesService.create(body);
   }
 
-  @Patch(":id")
+  @Patch("classes/:id")
   async update(
     @Param("id") id: string,
     @Body() body: UpdateClassDto,
@@ -84,7 +108,7 @@ export class ClassesController {
     return this.classesService.update(id, body);
   }
 
-  @Post(":id/enrollments")
+  @Post("classes/:id/enrollments")
   async assignStudentToClass(
     @Param("id") id: string,
     @Body() body: AssignStudentToClassDto,
@@ -94,7 +118,7 @@ export class ClassesController {
     return this.classesService.assignStudentToClass(id, body);
   }
 
-  @Post(":id/enrollments/move")
+  @Post("classes/:id/enrollments/move")
   async moveStudentToClass(
     @Param("id") id: string,
     @Body() body: MoveStudentToClassDto,
@@ -104,7 +128,7 @@ export class ClassesController {
     return this.classesService.moveStudentToClass(id, body);
   }
 
-  @Patch(":id/enrollments/:enrollmentId")
+  @Patch("classes/:id/enrollments/:enrollmentId")
   async updateEnrollmentStudentNumber(
     @Param("id") id: string,
     @Param("enrollmentId") enrollmentId: string,
@@ -141,6 +165,32 @@ export class ClassesController {
 
     return {
       role: normalizedRole,
+      userId: normalizedUserId
+    };
+  }
+
+  private getTeacherUser(roleHeader?: string, userIdHeader?: string): TeacherRequestUser {
+    if (!roleHeader) {
+      throw new BadRequestException("Missing x-user-role header.");
+    }
+
+    if (!userIdHeader) {
+      throw new BadRequestException("Missing x-user-id header.");
+    }
+
+    const normalizedRole = roleHeader.trim().toUpperCase();
+    const normalizedUserId = userIdHeader.trim();
+
+    if (!normalizedUserId) {
+      throw new BadRequestException("Missing x-user-id header.");
+    }
+
+    if (normalizedRole !== UserRole.TEACHER) {
+      throw new BadRequestException("Only TEACHER requests are supported for this endpoint.");
+    }
+
+    return {
+      role: UserRole.TEACHER,
       userId: normalizedUserId
     };
   }

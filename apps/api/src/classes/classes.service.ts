@@ -4,7 +4,13 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { Prisma, UserRole } from "@prisma/client";
+import {
+  AssessmentReviewMode,
+  AssessmentType,
+  Prisma,
+  SubmissionStatus,
+  UserRole
+} from "@prisma/client";
 import { PrismaService } from "../prisma/prisma.service";
 import { AssignStudentToClassDto } from "./dto/assign-student-to-class.dto";
 import { CreateClassDto } from "./dto/create-class.dto";
@@ -24,6 +30,35 @@ type ClassWithDisplayLabelFields = {
 
 type EnrollmentWithStudentNumberField = {
   studentNumberInClass: number | null;
+};
+
+type TeacherOwnedAssessmentSummary = {
+  id: string;
+  title: string;
+  type: AssessmentType;
+  totalPoints: number;
+  publishedAt: Date | null;
+  dueAt: Date | null;
+  reviewMode: AssessmentReviewMode;
+  reviewAvailableAt: Date | null;
+  createdAt: Date;
+};
+
+type SubmissionSummaryRecord = {
+  id: string;
+  assessmentId: string;
+  studentProfileId: string;
+  status: SubmissionStatus;
+  submittedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  result: {
+    totalScore: number;
+    maxScore: number;
+    percentage: number | null;
+    gradeLabel: string | null;
+    publishedAt: Date | null;
+  } | null;
 };
 
 @Injectable()
@@ -254,21 +289,7 @@ export class ClassesService {
         assessments: {
           ...(currentUser.role === UserRole.TEACHER
             ? {
-                where: {
-                  OR: [
-                    {
-                      teachingAssignment: {
-                        is: {
-                          teacherUserId: currentUser.userId ?? undefined
-                        }
-                      }
-                    },
-                    {
-                      teachingAssignmentId: null,
-                      teacherId: currentUser.userId ?? undefined
-                    }
-                  ]
-                }
+                where: this.buildTeacherOwnedAssessmentWhere(currentUser.userId ?? "")
               }
             : {}),
           select: {
@@ -301,6 +322,144 @@ export class ClassesService {
 
     const { teacherId: _, teachingAssignments: __, ...classData } = schoolClass;
     return this.attachEnrollmentDisplayIdentifiersToClass(classData);
+  }
+
+  async findOperationsForTeacher(id: string, teacherId: string) {
+    const schoolClass = await this.prisma.schoolClass.findUnique({
+      where: {
+        id
+      },
+      select: {
+        id: true,
+        name: true,
+        subject: true,
+        schoolYear: true,
+        gradeLevel: true,
+        classCode: true,
+        isActive: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+        teacherId: true,
+        teachingAssignments: {
+          where: {
+            teacherUserId: teacherId
+          },
+          select: {
+            id: true
+          }
+        },
+        enrollments: {
+          orderBy: [{ studentNumberInClass: "asc" }, { enrolledAt: "asc" }],
+          select: {
+            id: true,
+            enrolledAt: true,
+            studentNumberInClass: true,
+            studentProfile: {
+              select: {
+                id: true,
+                studentNumber: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        assessments: {
+          where: this.buildTeacherOwnedAssessmentWhere(teacherId),
+          orderBy: {
+            createdAt: "desc"
+          },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            totalPoints: true,
+            publishedAt: true,
+            dueAt: true,
+            reviewMode: true,
+            reviewAvailableAt: true,
+            createdAt: true
+          }
+        }
+      }
+    });
+
+    if (!schoolClass) {
+      return null;
+    }
+
+    const hasLegacyAccess = schoolClass.teacherId === teacherId;
+    const hasTeachingAssignmentAccess = schoolClass.teachingAssignments.length > 0;
+
+    if (!hasLegacyAccess && !hasTeachingAssignmentAccess) {
+      return null;
+    }
+
+    const studentProfileIds = schoolClass.enrollments.map((enrollment) => enrollment.studentProfile.id);
+    const assessmentIds = schoolClass.assessments.map((assessment) => assessment.id);
+
+    const submissions: SubmissionSummaryRecord[] =
+      studentProfileIds.length > 0 && assessmentIds.length > 0
+        ? await this.prisma.submission.findMany({
+            where: {
+              assessmentId: {
+                in: assessmentIds
+              },
+              studentProfileId: {
+                in: studentProfileIds
+              },
+              assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
+            },
+            orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+            select: {
+              id: true,
+              assessmentId: true,
+              studentProfileId: true,
+              status: true,
+              submittedAt: true,
+              createdAt: true,
+              updatedAt: true,
+              result: {
+                select: {
+                  totalScore: true,
+                  maxScore: true,
+                  percentage: true,
+                  gradeLabel: true,
+                  publishedAt: true
+                }
+              }
+            }
+          })
+        : [];
+
+    const { teacherId: _, teachingAssignments: __, ...classData } = schoolClass;
+
+    return {
+      class: this.attachDisplayLabel(classData),
+      students: schoolClass.enrollments.map((enrollment) => ({
+        studentProfileId: enrollment.studentProfile.id,
+        studentNumber: enrollment.studentProfile.studentNumber,
+        studentNumberInClass: enrollment.studentNumberInClass,
+        enrolledAt: enrollment.enrolledAt,
+        displayIdentifier: this.buildEnrollmentDisplayIdentifier(
+          schoolClass.gradeLevel,
+          schoolClass.classCode,
+          enrollment.studentNumberInClass
+        ),
+        user: enrollment.studentProfile.user
+      })),
+      assessments: schoolClass.assessments.map((assessment) =>
+        this.serializeTeacherOwnedAssessment(assessment)
+      ),
+      submissionSummaries: this.buildSubmissionSummaries(submissions)
+    };
   }
 
   async findStudentMemberships(studentProfileId: string) {
@@ -920,6 +1079,74 @@ export class ClassesService {
 
     throw error;
   }
+
+  private buildTeacherOwnedAssessmentWhere(teacherId: string): Prisma.AssessmentWhereInput {
+    return {
+      OR: [
+        {
+          teachingAssignment: {
+            is: {
+              teacherUserId: teacherId
+            }
+          }
+        },
+        {
+          teachingAssignmentId: null,
+          teacherId
+        }
+      ]
+    };
+  }
+
+  private serializeTeacherOwnedAssessment(assessment: TeacherOwnedAssessmentSummary) {
+    return {
+      assessmentId: assessment.id,
+      title: assessment.title,
+      type: assessment.type,
+      totalPoints: assessment.totalPoints,
+      publishedAt: assessment.publishedAt,
+      dueAt: assessment.dueAt,
+      reviewMode: assessment.reviewMode,
+      reviewAvailableAt: assessment.reviewAvailableAt,
+      createdAt: assessment.createdAt
+    };
+  }
+
+  private buildSubmissionSummaries(submissions: SubmissionSummaryRecord[]) {
+    const groupedSubmissions = new Map<string, SubmissionSummaryRecord[]>();
+
+    for (const submission of submissions) {
+      const key = `${submission.studentProfileId}:${submission.assessmentId}`;
+      const existingSubmissions = groupedSubmissions.get(key);
+
+      if (existingSubmissions) {
+        existingSubmissions.push(submission);
+        continue;
+      }
+
+      groupedSubmissions.set(key, [submission]);
+    }
+
+    return Array.from(groupedSubmissions.values()).map((submissionGroup) => {
+      const [latestSubmission] = submissionGroup;
+
+      return {
+        studentProfileId: latestSubmission.studentProfileId,
+        assessmentId: latestSubmission.assessmentId,
+        submissionCount: submissionGroup.length,
+        latestSubmissionStatus: latestSubmission.status,
+        latestSubmittedAt: latestSubmission.submittedAt,
+        latestUpdatedAt: latestSubmission.updatedAt,
+        latestResult: latestSubmission.result
+          ? {
+              totalScore: latestSubmission.result.totalScore,
+              maxScore: latestSubmission.result.maxScore,
+              percentage: latestSubmission.result.percentage,
+              gradeLabel: latestSubmission.result.gradeLabel,
+              publishedAt: latestSubmission.result.publishedAt
+            }
+          : null
+      };
+    });
+  }
 }
-
-
