@@ -73,6 +73,27 @@ async function main() {
     }
   });
 
+  const student2 = await prisma.user.upsert({
+    where: { email: "student2@evalis.local" },
+    update: {},
+    create: {
+      email: "student2@evalis.local",
+      passwordHash: "seed-student-2-password",
+      firstName: "Sara",
+      lastName: "StudentTwo",
+      role: UserRole.STUDENT,
+      studentProfile: {
+        create: {
+          studentNumber: "STU-1002",
+          dateOfBirth: new Date("2010-09-21T00:00:00.000Z")
+        }
+      }
+    },
+    include: {
+      studentProfile: true
+    }
+  });
+
   const parent = await prisma.user.upsert({
     where: { email: "parent@evalis.local" },
     update: {},
@@ -87,6 +108,10 @@ async function main() {
 
   if (!student.studentProfile) {
     throw new Error("Seed student profile was not created.");
+  }
+
+  if (!student2.studentProfile) {
+    throw new Error("Seed student 2 profile was not created.");
   }
 
   await prisma.parentStudentLink.upsert({
@@ -275,6 +300,40 @@ async function main() {
     }
   });
 
+  await prisma.enrollment.upsert({
+    where: {
+      schoolClassId_studentProfileId: {
+        schoolClassId: schoolClassTeacher2.id,
+        studentProfileId: student.studentProfile.id
+      }
+    },
+    update: {
+      studentNumberInClass: 1
+    },
+    create: {
+      schoolClassId: schoolClassTeacher2.id,
+      studentProfileId: student.studentProfile.id,
+      studentNumberInClass: 1
+    }
+  });
+
+  await prisma.enrollment.upsert({
+    where: {
+      schoolClassId_studentProfileId: {
+        schoolClassId: schoolClassTeacher2.id,
+        studentProfileId: student2.studentProfile.id
+      }
+    },
+    update: {
+      studentNumberInClass: 2
+    },
+    create: {
+      schoolClassId: schoolClassTeacher2.id,
+      studentProfileId: student2.studentProfile.id,
+      studentNumberInClass: 2
+    }
+  });
+
   await prisma.question.upsert({
     where: {
       assessmentId_orderIndex: {
@@ -328,6 +387,9 @@ async function main() {
     studentEmail: student.email,
     studentUserId: student.id,
     studentProfileId: student.studentProfile.id,
+    student2Email: student2.email,
+    student2UserId: student2.id,
+    student2ProfileId: student2.studentProfile.id,
     parentEmail: parent.email,
     schoolClassId: schoolClass.id,
     schoolClassTeacher2Id: schoolClassTeacher2.id,
