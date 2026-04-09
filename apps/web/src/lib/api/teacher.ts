@@ -2,6 +2,7 @@ import { apiRequest } from "./client";
 import type {
   TeacherAssessmentReviewSettings,
   TeacherAssessmentSubmissionListItem,
+  TeacherClassListItem,
   TeacherClassOperationsDetail,
   TeacherExamSessionDetail,
   TeacherExamSessionDevicesDetail,
@@ -17,6 +18,16 @@ const TEACHER_HEADERS = {
 export async function createTeacherExamSession(assessmentId: string, teacherId: string) {
   return apiRequest<TeacherExamSessionDetail>(`/teacher/assessments/${assessmentId}/exam-sessions`, {
     method: "POST",
+    headers: {
+      ...TEACHER_HEADERS,
+      "x-user-id": teacherId
+    }
+  });
+}
+
+export async function getTeacherClasses(teacherId: string) {
+  return apiRequest<TeacherClassListItem[]>("/classes", {
+    method: "GET",
     headers: {
       ...TEACHER_HEADERS,
       "x-user-id": teacherId

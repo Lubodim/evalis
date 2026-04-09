@@ -9,6 +9,29 @@ export type TeacherAssessmentReviewMode =
   | "ANSWERS_NO_EXPLANATIONS"
   | "ANSWERS_WITH_EXPLANATIONS";
 
+export interface TeacherClassListItem {
+  id: string;
+  name: string;
+  subject: string;
+  schoolYear: string;
+  gradeLevel: number | null;
+  classCode: string | null;
+  displayLabel: string | null;
+  isActive: boolean;
+  description: string | null;
+  createdAt: string;
+  teacher: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+  };
+  _count: {
+    enrollments: number;
+    assessments: number;
+  };
+}
+
 export interface TeacherClassSummary {
   id: string;
   name: string;
@@ -257,3 +280,4 @@ export interface TeacherGradeSubmissionAnswerInput {
 export interface TeacherGradeSubmissionInput {
   answers: TeacherGradeSubmissionAnswerInput[];
 }
+
