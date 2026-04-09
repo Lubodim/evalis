@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   getTeacherClassOperations,
@@ -154,7 +155,7 @@ export function TeacherClassOperationsSection({
   const [pendingStudentId, setPendingStudentId] = useState<string | null>(null);
   const [classError, setClassError] = useState<string | null>(null);
   const [studentError, setStudentError] = useState<string | null>(null);
-  const studentOperationsRef = useRef<HTMLElement | null>(null);
+  const studentCardRefs = useRef<Record<string, HTMLElement | null>>({});
 
   useEffect(() => {
     setSelectedStudentId(null);
@@ -177,8 +178,8 @@ export function TeacherClassOperationsSection({
     })();
   }, [classId, teacherId]);
 
-  function scrollToStudentOperations() {
-    studentOperationsRef.current?.scrollIntoView({
+  function scrollToStudentCard(studentProfileId: string) {
+    studentCardRefs.current[studentProfileId]?.scrollIntoView({
       behavior: "smooth",
       block: "start"
     });
@@ -189,7 +190,7 @@ export function TeacherClassOperationsSection({
 
     setSelectedStudentId(studentProfileId);
     setStudentError(null);
-    scrollToStudentOperations();
+    scrollToStudentCard(studentProfileId);
 
     if (cachedStudentOperations) {
       setIsStudentLoading(false);
@@ -210,7 +211,7 @@ export function TeacherClassOperationsSection({
         ...currentCache,
         [studentProfileId]: nextStudentOperations
       }));
-      scrollToStudentOperations();
+      scrollToStudentCard(studentProfileId);
     } catch (error) {
       setStudentError(
         error instanceof Error ? error.message : "The student operations could not be loaded."
@@ -219,15 +220,6 @@ export function TeacherClassOperationsSection({
       setIsStudentLoading(false);
       setPendingStudentId(null);
     }
-  }
-
-  async function handleMatrixStudentAction(studentProfileId: string) {
-    if (selectedStudentId === studentProfileId && !isStudentLoading) {
-      scrollToStudentOperations();
-      return;
-    }
-
-    await openStudentOperations(studentProfileId);
   }
 
   async function handleStudentListAction(studentProfileId: string) {
@@ -422,16 +414,23 @@ export function TeacherClassOperationsSection({
                                   {isPending ? "Opening selected student..." : "Student is open"}
                                 </span>
                               ) : null}
-                              <button
-                                type="button"
-                                disabled={isPending}
-                                onClick={() => {
-                                  void handleMatrixStudentAction(student.studentProfileId);
+                              <span
+                                style={{
+                                  width: "fit-content",
+                                  padding: "4px 8px",
+                                  borderRadius: "999px",
+                                  background: isSelected ? "#dce8ff" : "#eef2f8",
+                                  color: isSelected ? "#2444ac" : "#52607a",
+                                  fontSize: "0.85rem",
+                                  fontWeight: 600
                                 }}
-                                style={{ width: "fit-content" }}
                               >
-                                {isPending ? "Opening..." : isSelected ? "Active" : "View"}
-                              </button>
+                                {isPending
+                                  ? "Opening from Students list..."
+                                  : isSelected
+                                    ? "Active"
+                                    : "Open from Students list"}
+                              </span>
                             </div>
                           </td>
                           {classOperations.assessments.map((assessment) => {
@@ -509,6 +508,12 @@ export function TeacherClassOperationsSection({
                   <p>Due at: {formatDate(assessment.dueAt)}</p>
                   <p>Review mode: {assessment.reviewMode}</p>
                   <p>Review available at: {formatDate(assessment.reviewAvailableAt)}</p>
+                  <Link
+                    href={`/teacher/assessments/${assessment.assessmentId}`}
+                    style={{ width: "fit-content", color: "#2444ac", fontWeight: 600 }}
+                  >
+                    Open assessment
+                  </Link>
                 </article>
               ))
             )}
@@ -527,6 +532,9 @@ export function TeacherClassOperationsSection({
                 return (
                   <article
                     key={student.studentProfileId}
+                    ref={(element) => {
+                      studentCardRefs.current[student.studentProfileId] = element;
+                    }}
                     style={{
                       display: "grid",
                       gap: "10px",
@@ -555,130 +563,140 @@ export function TeacherClassOperationsSection({
                     >
                       {isPending ? "Opening..." : isSelected ? "Close" : "Open"}
                     </button>
+
+                    {isSelected ? (
+                      <section
+                        style={{
+                          display: "grid",
+                          gap: "20px",
+                          marginTop: "8px",
+                          borderTop: "1px solid #d9e2f0",
+                          paddingTop: "18px"
+                        }}
+                      >
+                        <div>
+                          <p className="eyebrow">Teacher</p>
+                          <h4>Student Operations</h4>
+                        </div>
+
+                        {isStudentLoading ? <p>Loading student operations...</p> : null}
+                        {!isStudentLoading && selectedStudentOperations ? (
+                          <p style={{ color: "#2444ac", fontWeight: 600 }}>
+                            Showing {formatStudentLabel(selectedStudentOperations.student)}.
+                          </p>
+                        ) : null}
+                        {studentError ? <p>Error: {studentError}</p> : null}
+
+                        {selectedStudentOperations ? (
+                          <>
+                            <section
+                              style={{
+                                display: "grid",
+                                gap: "8px",
+                                border: "1px solid #d9e2f0",
+                                borderRadius: "14px",
+                                padding: "18px",
+                                background: "#f9fbff"
+                              }}
+                            >
+                              <strong>{formatStudentLabel(selectedStudentOperations.student)}</strong>
+                              <p>
+                                Student number: {selectedStudentOperations.student.studentNumber ?? "Not available"}
+                              </p>
+                              <p>
+                                Student number in class: {selectedStudentOperations.student.studentNumberInClass ?? "Not available"}
+                              </p>
+                              <p>
+                                Display identifier: {selectedStudentOperations.student.displayIdentifier ?? "Not available"}
+                              </p>
+                              <p>Enrolled at: {formatDate(selectedStudentOperations.student.enrolledAt)}</p>
+                            </section>
+
+                            <section style={{ display: "grid", gap: "12px" }}>
+                              <h4>Assessment overview</h4>
+
+                              {selectedStudentOperations.assessments.length === 0 ? (
+                                <p>No teacher-owned assessments are available for this student in this class yet.</p>
+                              ) : (
+                                selectedStudentOperations.assessments.map((assessment) => {
+                                  const summary =
+                                    selectedStudentOperations.submissionSummaries.find(
+                                      (item) => item.assessmentId === assessment.assessmentId
+                                    ) ?? null;
+
+                                  return (
+                                    <article
+                                      key={assessment.assessmentId}
+                                      style={{
+                                        display: "grid",
+                                        gap: "8px",
+                                        border: "1px solid #d9e2f0",
+                                        borderRadius: "14px",
+                                        padding: "18px",
+                                        background: "#f9fbff"
+                                      }}
+                                    >
+                                      <strong>{assessment.title}</strong>
+                                      <p>Type: {formatAssessmentType(assessment.type)}</p>
+                                      <p>Published at: {formatDate(assessment.publishedAt)}</p>
+                                      <p>Due at: {formatDate(assessment.dueAt)}</p>
+                                      <p>Review mode: {assessment.reviewMode}</p>
+                                      <p>Review available at: {formatDate(assessment.reviewAvailableAt)}</p>
+
+                                      {summary ? (
+                                        <>
+                                          <p>Status: {formatSubmissionStatus(summary.latestSubmissionStatus)}</p>
+                                          <p>Submission count: {summary.submissionCount}</p>
+                                          <p>Latest submitted at: {formatDate(summary.latestSubmittedAt)}</p>
+                                          <p>Latest updated at: {formatDate(summary.latestUpdatedAt)}</p>
+                                          <p>Latest result: {formatResultSummary(summary.latestResult)}</p>
+                                        </>
+                                      ) : (
+                                        <p>No submission activity yet.</p>
+                                      )}
+                                    </article>
+                                  );
+                                })
+                              )}
+                            </section>
+
+                            <section style={{ display: "grid", gap: "12px" }}>
+                              <h4>Submission summaries</h4>
+
+                              {selectedStudentOperations.submissionSummaries.length === 0 ? (
+                                <p>No submission activity is available for this student yet.</p>
+                              ) : (
+                                selectedStudentOperations.submissionSummaries.map((summary) => (
+                                  <article
+                                    key={summary.assessmentId}
+                                    style={{
+                                      display: "grid",
+                                      gap: "8px",
+                                      border: "1px solid #d9e2f0",
+                                      borderRadius: "14px",
+                                      padding: "18px",
+                                      background: "#f9fbff"
+                                    }}
+                                  >
+                                    <strong>Assessment {summary.assessmentId}</strong>
+                                    <p>Status: {formatSubmissionStatus(summary.latestSubmissionStatus)}</p>
+                                    <p>Submission count: {summary.submissionCount}</p>
+                                    <p>Latest submitted at: {formatDate(summary.latestSubmittedAt)}</p>
+                                    <p>Latest updated at: {formatDate(summary.latestUpdatedAt)}</p>
+                                    <p>Latest result: {formatResultSummary(summary.latestResult)}</p>
+                                  </article>
+                                ))
+                              )}
+                            </section>
+                          </>
+                        ) : null}
+                      </section>
+                    ) : null}
                   </article>
                 );
               })
             )}
           </section>
-
-          {selectedStudentId ? (
-            <section
-              ref={studentOperationsRef}
-              className="card"
-              style={{ maxWidth: "none", padding: "24px", scrollMarginTop: "24px" }}
-            >
-              <p className="eyebrow">Teacher</p>
-              <h3>Student Operations</h3>
-
-              {isStudentLoading ? <p>Loading student operations...</p> : null}
-              {!isStudentLoading && selectedStudentOperations ? (
-                <p style={{ color: "#2444ac", fontWeight: 600 }}>
-                  Showing {formatStudentLabel(selectedStudentOperations.student)}.
-                </p>
-              ) : null}
-              {studentError ? <p>Error: {studentError}</p> : null}
-
-              {selectedStudentOperations ? (
-                <div style={{ display: "grid", gap: "20px", marginTop: "16px" }}>
-                  <section
-                    style={{
-                      display: "grid",
-                      gap: "8px",
-                      border: "1px solid #d9e2f0",
-                      borderRadius: "14px",
-                      padding: "18px",
-                      background: "#f9fbff"
-                    }}
-                  >
-                    <strong>{formatStudentLabel(selectedStudentOperations.student)}</strong>
-                    <p>Student number: {selectedStudentOperations.student.studentNumber ?? "Not available"}</p>
-                    <p>
-                      Student number in class: {selectedStudentOperations.student.studentNumberInClass ?? "Not available"}
-                    </p>
-                    <p>Display identifier: {selectedStudentOperations.student.displayIdentifier ?? "Not available"}</p>
-                    <p>Enrolled at: {formatDate(selectedStudentOperations.student.enrolledAt)}</p>
-                  </section>
-
-                  <section style={{ display: "grid", gap: "12px" }}>
-                    <h4>Assessment overview</h4>
-
-                    {selectedStudentOperations.assessments.length === 0 ? (
-                      <p>No teacher-owned assessments are available for this student in this class yet.</p>
-                    ) : (
-                      selectedStudentOperations.assessments.map((assessment) => {
-                        const summary =
-                          selectedStudentOperations.submissionSummaries.find(
-                            (item) => item.assessmentId === assessment.assessmentId
-                          ) ?? null;
-
-                        return (
-                          <article
-                            key={assessment.assessmentId}
-                            style={{
-                              display: "grid",
-                              gap: "8px",
-                              border: "1px solid #d9e2f0",
-                              borderRadius: "14px",
-                              padding: "18px",
-                              background: "#f9fbff"
-                            }}
-                          >
-                            <strong>{assessment.title}</strong>
-                            <p>Type: {formatAssessmentType(assessment.type)}</p>
-                            <p>Published at: {formatDate(assessment.publishedAt)}</p>
-                            <p>Due at: {formatDate(assessment.dueAt)}</p>
-                            <p>Review mode: {assessment.reviewMode}</p>
-                            <p>Review available at: {formatDate(assessment.reviewAvailableAt)}</p>
-
-                            {summary ? (
-                              <>
-                                <p>Status: {formatSubmissionStatus(summary.latestSubmissionStatus)}</p>
-                                <p>Submission count: {summary.submissionCount}</p>
-                                <p>Latest submitted at: {formatDate(summary.latestSubmittedAt)}</p>
-                                <p>Latest updated at: {formatDate(summary.latestUpdatedAt)}</p>
-                                <p>Latest result: {formatResultSummary(summary.latestResult)}</p>
-                              </>
-                            ) : (
-                              <p>No submission activity yet.</p>
-                            )}
-                          </article>
-                        );
-                      })
-                    )}
-                  </section>
-
-                  <section style={{ display: "grid", gap: "12px" }}>
-                    <h4>Submission summaries</h4>
-
-                    {selectedStudentOperations.submissionSummaries.length === 0 ? (
-                      <p>No submission activity is available for this student yet.</p>
-                    ) : (
-                      selectedStudentOperations.submissionSummaries.map((summary) => (
-                        <article
-                          key={summary.assessmentId}
-                          style={{
-                            display: "grid",
-                            gap: "8px",
-                            border: "1px solid #d9e2f0",
-                            borderRadius: "14px",
-                            padding: "18px",
-                            background: "#f9fbff"
-                          }}
-                        >
-                          <strong>Assessment {summary.assessmentId}</strong>
-                          <p>Status: {formatSubmissionStatus(summary.latestSubmissionStatus)}</p>
-                          <p>Submission count: {summary.submissionCount}</p>
-                          <p>Latest submitted at: {formatDate(summary.latestSubmittedAt)}</p>
-                          <p>Latest updated at: {formatDate(summary.latestUpdatedAt)}</p>
-                          <p>Latest result: {formatResultSummary(summary.latestResult)}</p>
-                        </article>
-                      ))
-                    )}
-                  </section>
-                </div>
-              ) : null}
-            </section>
-          ) : null}
         </div>
       ) : null}
     </section>
