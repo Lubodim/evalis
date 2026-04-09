@@ -650,10 +650,17 @@ export function TeacherClassOperationsSection({
                                           <p>Latest submitted at: {formatDate(summary.latestSubmittedAt)}</p>
                                           <p>Latest updated at: {formatDate(summary.latestUpdatedAt)}</p>
                                           <p>Latest result: {formatResultSummary(summary.latestResult)}</p>
+                                          <p>Open assessment to review this student's submission.</p>
                                         </>
                                       ) : (
                                         <p>No submission activity yet.</p>
                                       )}
+                                      <Link
+                                        href={`/teacher/assessments/${assessment.assessmentId}`}
+                                        style={{ width: "fit-content", color: "#2444ac", fontWeight: 600 }}
+                                      >
+                                        Open assessment
+                                      </Link>
                                     </article>
                                   );
                                 })
