@@ -73,6 +73,21 @@ export class ClassesController {
     return operationsView;
   }
 
+  @Get("teacher/classes/:classId/students/:studentProfileId/operations")
+  async findTeacherStudentOperations(
+    @Param("classId") classId: string,
+    @Param("studentProfileId") studentProfileId: string,
+    @Headers("x-user-role") roleHeader?: string,
+    @Headers("x-user-id") userIdHeader?: string
+  ) {
+    const currentUser = this.getTeacherUser(roleHeader, userIdHeader);
+    return this.classesService.findStudentOperationsForTeacher(
+      classId,
+      studentProfileId,
+      currentUser.userId
+    );
+  }
+
   @Get("classes/:id")
   async findOne(
     @Param("id") id: string,
@@ -215,3 +230,4 @@ export class ClassesController {
     };
   }
 }
+

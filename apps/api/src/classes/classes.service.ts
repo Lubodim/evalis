@@ -462,6 +462,154 @@ export class ClassesService {
     };
   }
 
+  async findStudentOperationsForTeacher(
+    classId: string,
+    studentProfileId: string,
+    teacherId: string
+  ) {
+    const schoolClass = await this.prisma.schoolClass.findUnique({
+      where: {
+        id: classId
+      },
+      select: {
+        id: true,
+        name: true,
+        subject: true,
+        schoolYear: true,
+        gradeLevel: true,
+        classCode: true,
+        isActive: true,
+        description: true,
+        createdAt: true,
+        updatedAt: true,
+        teacherId: true,
+        teachingAssignments: {
+          where: {
+            teacherUserId: teacherId
+          },
+          select: {
+            id: true
+          }
+        },
+        enrollments: {
+          where: {
+            studentProfileId
+          },
+          select: {
+            id: true,
+            enrolledAt: true,
+            studentNumberInClass: true,
+            studentProfile: {
+              select: {
+                id: true,
+                studentNumber: true,
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true
+                  }
+                }
+              }
+            }
+          }
+        },
+        assessments: {
+          where: this.buildTeacherOwnedAssessmentWhere(teacherId),
+          orderBy: {
+            createdAt: "desc"
+          },
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            totalPoints: true,
+            publishedAt: true,
+            dueAt: true,
+            reviewMode: true,
+            reviewAvailableAt: true,
+            createdAt: true
+          }
+        }
+      }
+    });
+
+    if (!schoolClass) {
+      throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
+    }
+
+    const hasLegacyAccess = schoolClass.teacherId === teacherId;
+    const hasTeachingAssignmentAccess = schoolClass.teachingAssignments.length > 0;
+
+    if (!hasLegacyAccess && !hasTeachingAssignmentAccess) {
+      throw new NotFoundException(`Class ${classId} was not found for this teacher.`);
+    }
+
+    const enrollment = schoolClass.enrollments[0];
+
+    if (!enrollment) {
+      throw new NotFoundException(
+        `Student profile ${studentProfileId} was not found in class ${classId}.`
+      );
+    }
+
+    const assessmentIds = schoolClass.assessments.map((assessment) => assessment.id);
+    const submissions: SubmissionSummaryRecord[] =
+      assessmentIds.length > 0
+        ? await this.prisma.submission.findMany({
+            where: {
+              assessmentId: {
+                in: assessmentIds
+              },
+              studentProfileId,
+              assessment: this.buildTeacherOwnedAssessmentWhere(teacherId)
+            },
+            orderBy: [{ updatedAt: "desc" }, { createdAt: "desc" }],
+            select: {
+              id: true,
+              assessmentId: true,
+              studentProfileId: true,
+              status: true,
+              submittedAt: true,
+              createdAt: true,
+              updatedAt: true,
+              result: {
+                select: {
+                  totalScore: true,
+                  maxScore: true,
+                  percentage: true,
+                  gradeLabel: true,
+                  publishedAt: true
+                }
+              }
+            }
+          })
+        : [];
+
+    const { teacherId: _, teachingAssignments: __, enrollments: ___, ...classData } = schoolClass;
+
+    return {
+      class: this.attachDisplayLabel(classData),
+      student: {
+        studentProfileId: enrollment.studentProfile.id,
+        studentNumber: enrollment.studentProfile.studentNumber,
+        studentNumberInClass: enrollment.studentNumberInClass,
+        enrolledAt: enrollment.enrolledAt,
+        displayIdentifier: this.buildEnrollmentDisplayIdentifier(
+          schoolClass.gradeLevel,
+          schoolClass.classCode,
+          enrollment.studentNumberInClass
+        ),
+        user: enrollment.studentProfile.user
+      },
+      assessments: schoolClass.assessments.map((assessment) =>
+        this.serializeTeacherOwnedAssessment(assessment)
+      ),
+      submissionSummaries: this.buildStudentSubmissionSummaries(submissions)
+    };
+  }
+
   async findStudentMemberships(studentProfileId: string) {
     const normalizedStudentProfileId = this.parseRequiredStudentProfileId(studentProfileId);
 
@@ -1149,4 +1297,41 @@ export class ClassesService {
       };
     });
   }
+
+  private buildStudentSubmissionSummaries(submissions: SubmissionSummaryRecord[]) {
+    const groupedSubmissions = new Map<string, SubmissionSummaryRecord[]>();
+
+    for (const submission of submissions) {
+      const existingSubmissions = groupedSubmissions.get(submission.assessmentId);
+
+      if (existingSubmissions) {
+        existingSubmissions.push(submission);
+        continue;
+      }
+
+      groupedSubmissions.set(submission.assessmentId, [submission]);
+    }
+
+    return Array.from(groupedSubmissions.entries()).map(([assessmentId, submissionGroup]) => {
+      const [latestSubmission] = submissionGroup;
+
+      return {
+        assessmentId,
+        submissionCount: submissionGroup.length,
+        latestSubmissionStatus: latestSubmission.status,
+        latestSubmittedAt: latestSubmission.submittedAt,
+        latestUpdatedAt: latestSubmission.updatedAt,
+        latestResult: latestSubmission.result
+          ? {
+              totalScore: latestSubmission.result.totalScore,
+              maxScore: latestSubmission.result.maxScore,
+              percentage: latestSubmission.result.percentage,
+              gradeLabel: latestSubmission.result.gradeLabel,
+              publishedAt: latestSubmission.result.publishedAt
+            }
+          : null
+      };
+    });
+  }
 }
+
